@@ -1,0 +1,24 @@
+[package]
+name = "sf-push-inspector"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["Ronny Schlidt"]
+description = "Terminal UI to inspect Salesforce managed package push upgrades, failed jobs and subscribers"
+license = "MIT"
+repository = "https://github.com/ronny-schlidt/sf-push-inspector"
+readme = "README.md"
+keywords = ["salesforce", "tui", "ratatui", "isv", "push-upgrade"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = "0.4.45"
+clap = { version = "4.6.7", features = ["derive"] }
+ratatui = "0.30.2"
+serde_json = "1.0.151"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
