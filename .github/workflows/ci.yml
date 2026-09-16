@@ -7,10 +7,9 @@ on:
 
 jobs:
   check:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # Linux only: macOS and Windows runners cost 10x and 2x minutes in private repositories.
+    # The release workflow still builds and links every platform.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

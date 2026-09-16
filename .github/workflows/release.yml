@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v0.1.0 to build binaries and attach them to a GitHub release.
+# Push a tag like v0.2.0 to build binaries and attach them to a GitHub release.
+# Archive names carry no version, so install.sh can use /releases/latest/download/.
 on:
   push:
     tags: ["v*"]
@@ -34,9 +35,9 @@ jobs:
       - name: Package (macOS, Linux)
         if: runner.os != 'Windows'
         run: |
-          name=sf-push-inspector-${{ github.ref_name }}-${{ matrix.target }}
+          name=sf-cockpit-${{ matrix.target }}
           mkdir "$name"
-          cp target/${{ matrix.target }}/release/sf-push-inspector README.md LICENSE "$name"/
+          cp target/${{ matrix.target }}/release/sf-cockpit README.md LICENSE "$name"/
           tar czf "$name.tar.gz" "$name"
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
 
@@ -44,9 +45,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $name = "sf-push-inspector-${{ github.ref_name }}-${{ matrix.target }}"
+          $name = "sf-cockpit-${{ matrix.target }}"
           New-Item -ItemType Directory $name | Out-Null
-          Copy-Item target/${{ matrix.target }}/release/sf-push-inspector.exe, README.md, LICENSE $name
+          Copy-Item target/${{ matrix.target }}/release/sf-cockpit.exe, README.md, LICENSE $name
           Compress-Archive -Path $name -DestinationPath "$name.zip"
           (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower() + "  $name.zip" | Out-File -Encoding ascii "$name.zip.sha256"
 
@@ -54,6 +55,6 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            sf-push-inspector-*.tar.gz
-            sf-push-inspector-*.zip
-            sf-push-inspector-*.sha256
+            sf-cockpit-*.tar.gz
+            sf-cockpit-*.zip
+            sf-cockpit-*.sha256

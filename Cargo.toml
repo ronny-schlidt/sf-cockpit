@@ -1,22 +1,25 @@
 [package]
-name = "sf-push-inspector"
-version = "0.1.0"
+name = "sf-cockpit"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
 authors = ["Ronny Schlidt"]
-description = "Terminal UI to inspect Salesforce managed package push upgrades, failed jobs and subscribers"
+description = "Terminal cockpit for Salesforce ISVs: push upgrades, subscribers, orgs, package versions, deployments and Apex tests"
 license = "MIT"
-repository = "https://github.com/ronny-schlidt/sf-push-inspector"
+repository = "https://github.com/ronny-schlidt/sf-cockpit"
 readme = "README.md"
 keywords = ["salesforce", "tui", "ratatui", "isv", "push-upgrade"]
 categories = ["command-line-utilities"]
 
 [dependencies]
 anyhow = "1.0.104"
-chrono = "0.4.45"
+chrono = { version = "0.4.45", features = ["serde"] }
 clap = { version = "4.6.7", features = ["derive"] }
 ratatui = "0.30.2"
+serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.151"
+toml = "0.9"
+toml_edit = "0.23"
 
 [profile.release]
 lto = true
