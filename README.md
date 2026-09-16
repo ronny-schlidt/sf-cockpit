@@ -1,163 +1,154 @@
-# sf-push-inspector
+# sf-cockpit
 
-A terminal UI for Salesforce ISVs to see what happened to your **managed package push upgrades**: which orgs failed, why they failed, what to do next, and which subscriber org is on which version.
+A terminal cockpit for Salesforce ISVs. It puts the `sf` commands you run every week behind one keyboard- and mouse-driven UI:
 
-The Setup UI and `sf package push-upgrade report` only show a summary. This tool puts push requests, jobs, error messages and subscribers side by side, with full mouse support.
+- **Push upgrades:** see which orgs failed and why, schedule new pushes, retry failed orgs, abort pending requests.
+- **Subscribers:** every org with your package and whether it is behind the latest release.
+- **Orgs:** all orgs the `sf` CLI knows, with status, scratch org expiry, duplicate aliases and the installed package version.
+- **Versions:** package versions with coverage and subscriber count; copy install links, promote, install, create new versions.
+- **Deploy & Test:** deployment history of an org, deploy your project with a live log, run Apex tests and see failures and coverage.
+- **Settings:** pick the Dev Hub, package and scratch org from lists, saved straight into your config file.
 
-<!-- Add a screenshot: run `sf-push-inspector --demo`, take a screenshot and save it as docs/screenshot.png -->
-<!-- ![sf-push-inspector](docs/screenshot.png) -->
+Every tab opens instantly with the data of the last run and refreshes itself in the background; a spinner next to a tab name shows which tabs are still refreshing.
 
-## Features
+Every command that changes something shows the exact `sf` command and asks first. Push upgrades, promotions and installs outside your scratch org are marked as dangerous.
 
-- **Push requests** with version, status, results (`12✓ 3✗`) and duration.
-- **Jobs per request**, failures first, with org name, local `sf` alias, org type, instance and org ID.
-- **Error details** for each job, plus a plain-language **next step** for common errors such as `IneligibleUpgrade` or `UnclassifiedError`.
-- **Subscribers** with their installed version, highlighting orgs that are behind the latest released version. You can filter by name, alias, org ID, instance or version.
-- **Mouse support:** click rows, tabs and buttons, scroll with the wheel, drag the divider to resize panes, and drag to select and copy text.
-- **Read-only:** it only runs `sf data query`. Nothing is written to any org, and no data leaves your machine.
-- A **demo mode** with sample data, so you can try it without an org.
+## Install
 
-## Requirements
-
-- The [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`) on your `PATH`.
-- Access to the **packaging org** that owns your managed package (for 2GP, the Dev Hub), logged in with `sf`.
-- Push upgrades enabled for your package, so the org can query `PackagePushRequest`.
-
-## Installation
-
-### Option 1: prebuilt binary
-
-Download the archive for your platform from the [latest release](https://github.com/ronny-schlidt/sf-push-inspector/releases/latest):
-
-| Platform | File |
-|---|---|
-| macOS (Apple Silicon) | `sf-push-inspector-<version>-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `sf-push-inspector-<version>-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `sf-push-inspector-<version>-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux (ARM64) | `sf-push-inspector-<version>-aarch64-unknown-linux-gnu.tar.gz` |
-| Windows | `sf-push-inspector-<version>-x86_64-pc-windows-msvc.zip` |
-
-macOS and Linux:
+The repository is private, so installing goes through the [GitHub CLI](https://cli.github.com) with an account that can read it:
 
 ```bash
-tar xzf sf-push-inspector-*.tar.gz
-sudo mv sf-push-inspector-*/sf-push-inspector /usr/local/bin/
-# macOS only: the binary is not notarized, so remove the download quarantine flag
-sudo xattr -d com.apple.quarantine /usr/local/bin/sf-push-inspector
+brew install gh && gh auth login          # once
+gh api -H "Accept: application/vnd.github.raw" repos/ronny-schlidt/sf-cockpit/contents/install.sh | sh
 ```
 
-Windows: unzip the archive and put `sf-push-inspector.exe` in a folder on your `PATH`.
+The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN_DIR`). It downloads the prebuilt binary of the latest release and checks its checksum. Without a release for your platform it clones the repository and builds it with cargo, which needs [Rust](https://rustup.rs). From a clone, `./install.sh` builds and installs the local code. Run the same command again to update.
 
-### Option 2: with Cargo
-
-You need [Rust](https://rustup.rs) 1.88 or newer.
+You also need the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`), logged in to the Dev Hub that owns your package:
 
 ```bash
-cargo install --git https://github.com/ronny-schlidt/sf-push-inspector
+sf org login web --alias DevHub --set-default-dev-hub
 ```
 
-### Option 3: from source
+## First start
 
-```bash
-git clone https://github.com/ronny-schlidt/sf-push-inspector
-cd sf-push-inspector
-cargo build --release
-./target/release/sf-push-inspector --demo
-```
+Start `sf-cockpit` inside your Salesforce project folder, where `sfdx-project.json` is. If no Dev Hub is configured yet, sf-cockpit opens its Settings tab: choose the Dev Hub from your orgs, then the package and the scratch org. The choices are saved to `sf-cockpit.toml` in the project, so everyone who clones the project gets them. The Setup box on that tab lists anything still missing, for example when no org is logged in as Dev Hub, or when sf-cockpit was started outside a project.
 
 ## Quick start
 
 ```bash
-# Try it without an org
-sf-push-inspector --demo
-
-# Log in to your packaging org once and make it the default Dev Hub
-sf org login web --alias my-packaging-org --set-default-dev-hub
-
-# Open the TUI
-sf-push-inspector
-
-# Or name the org explicitly
-sf-push-inspector --target-org my-packaging-org
+sf-cockpit --demo                 # sample data, no org needed
+cd ~/my-sfdx-project && sf-cockpit
+sf-cockpit --tab orgs             # open a specific tab
+sf-cockpit --print --tab push     # plain text for scripts, CI logs and AI agents
 ```
 
-Without `--target-org`, the tool uses `target-dev-hub` from your `sf` config: first the project config (`.sf/config.json` in the current or a parent directory), then the global one.
+## Configuration
 
-### Options
+sf-cockpit reads, from highest to lowest priority:
 
-| Option | Description |
-|---|---|
-| `-o, --target-org <alias>` | Packaging org alias or username. |
-| `-l, --limit <n>` | Number of recent push requests to load (default 30). |
-| `--print` | Print a plain-text summary instead of opening the TUI. Handy for scripts, CI logs or AI agents. |
-| `--demo` | Use fictional sample data. |
+1. Command-line flags (`--dev-hub`, `--package`, `--limit`, `--org`).
+2. `sf-cockpit.toml` in the current directory or a parent directory. Its directory is the project directory.
+3. `~/.config/sf-cockpit/config.toml` (or `$XDG_CONFIG_HOME/sf-cockpit/config.toml`).
+4. The `sf` CLI config: `target-dev-hub` and `target-org`.
+5. `sfdx-project.json`: the package id from `packageAliases`.
+
+```toml
+dev_hub = "my-devhub"                             # alias or username
+package = "My Package"                            # name or 0Ho id
+scratch_org = "my-scratch"                        # default org for deploys, tests and installs
+project_dir = "."                                 # relative to this file
+source_dir = "force-app"                          # what D deploys
+definition_file = "config/project-scratch-def.json"
+skip_ancestor_check = false
+limit = 30                                        # push requests to load
+```
+
+Unknown keys are an error, so typos do not go unnoticed.
+
+You rarely need to edit these files by hand: the **Settings** tab (`6`) lets you pick `dev_hub`, `package` and `scratch_org` from your orgs and your Dev Hub's packages. It writes into `sf-cockpit.toml` when you started inside a project, otherwise into the global file, and only touches the changed line. The tab also shows where every value comes from. `sf-cockpit --print --tab settings` prints the same overview.
+
+## Cache
+
+The last loaded data of every tab is stored in `~/Library/Caches/sf-cockpit` (macOS), `$XDG_CACHE_HOME/sf-cockpit` or `~/.cache/sf-cockpit`. Only parsed data is stored (org names, usernames, org ids, versions, deployments), never access tokens, and the files are readable only by you. The top bar shows how old the shown data is while it refreshes, and keeps showing it if a refresh fails. Clear it with `C` on the Settings tab.
 
 ## Controls
 
-| Mouse | Action |
-|---|---|
-| Click a row | Select a push request, job or subscriber. |
-| Click a tab or a button in the footer | Switch tab or run the action. |
-| Scroll wheel | Scroll the list or panel under the pointer. |
-| Drag the divider between the panels | Resize the panels. |
-| Drag over text | Select it. It is copied to the clipboard when you release the button. |
+The mouse works everywhere: click tabs, rows and the buttons in the footer, scroll with the wheel, drag the divider on the Push tab, and drag over text to copy it.
 
-| Key | Action |
-|---|---|
-| `1` / `2` | Push Upgrades / Subscribers tab |
-| `Tab`, `←` `→` | Move between panels |
-| `↑` `↓`, `j` `k`, `PgUp` `PgDn`, `g` `G` | Move the selection or scroll the details |
-| `c` | Copy the error details of the selected job |
-| `/` | Filter subscribers (`Esc` clears the filter) |
-| `[` `]` | Resize the panels |
-| `r` | Reload |
-| `q`, `Esc` | Quit |
+| Key | Where | Action |
+|---|---|---|
+| `1`–`6` | everywhere | Push Upgrades, Subscribers, Orgs, Versions, Deploy & Test, Settings |
+| `Tab`, `←` `→` | everywhere | Move between panels |
+| `↑` `↓`, `j` `k`, `PgUp` `PgDn`, `g` `G` | everywhere | Move the selection or scroll |
+| `r` | everywhere | Reload the current tab (on Settings: all tabs) |
+| `L` / `x` | everywhere | Show the log of the last command / cancel the running command |
+| `q`, `Esc` | everywhere | Quit (`Esc` first clears a filter) |
+| `s` | Push, Subscribers | Schedule a push upgrade |
+| `a` | Push | Abort the selected request (Created or Pending only) |
+| `f` | Push | Retry: schedule again for the failed orgs of the selected request |
+| `c` | most tabs | Copy details (Orgs: username) |
+| `/` | Subscribers, Orgs | Filter |
+| `o` / `i` / `I` | Orgs | Open in browser / installed version of the org / of all orgs |
+| `C` / `d` | Orgs | Copy org id / delete a scratch org |
+| `u` / `U` | Versions | Copy the production / sandbox install link |
+| `p` / `i` / `n` | Versions | Promote a beta / install into an org / create a new version |
+| `o` / `D` / `t` | Deploy & Test | Choose the org / deploy the project / run Apex tests |
+| `Enter`, `e` / `C` | Settings | Change the selected setting / clear the cache |
+| `[` `]` | Push | Resize the panels |
 
-### Copying text
+### Scheduling a push upgrade
 
-Selections stay inside the panel where you started dragging, so borders and neighbouring panels are never copied. The text goes to the system clipboard through `pbcopy` (macOS), `clip` (Windows), `wl-copy`, `xclip` or `xsel` (Linux). If none is available, the tool falls back to the OSC 52 escape sequence, which works in most modern terminals, also over SSH.
+`s` opens a four-step wizard: choose the released version, choose the orgs (orgs behind that version are preselected, orgs already on it are flagged), choose a start time in UTC or start right away, then confirm. The confirmation shows the exact command. After scheduling, the Push tab selects the new request and refreshes itself every 30 seconds while a request is pending or in progress.
 
-You can also use your terminal's own selection. Most terminals bypass mouse capture while you hold `Shift` (in iTerm2 it is `Option`).
+If Salesforce rejects some orgs, `sf` writes `job_errors/push_request_<id>_errors.log` into the project directory and the request can stay in `Created`. Abort it with `a` and schedule again without those orgs.
 
 ## Common push upgrade errors
 
 | Error | Meaning | Next step |
 |---|---|---|
-| `IneligibleUpgrade`: "This package is not yet available" | The new version has not reached the subscriber's Salesforce instance yet. This is common right after promoting a version. | Schedule the push again in a few hours. |
-| `IneligibleUpgrade` (other messages) | The package is not installed, a beta version is installed, or the org already has this or a newer version. | Check the org on the Subscribers tab. |
-| `UnclassifiedError`: "Unexpected Failure" | Salesforce does not reveal the cause. | Install the version into that org by hand (`sf package install`) to see the real error. If that works, push again. Otherwise open a support case with the error number. |
-| `ApexTestFailure` | An Apex test failed in the subscriber org during the upgrade. | Fix the test or the code and create a new package version. |
+| `IneligibleUpgrade`: "This package is not yet available" | The new version has not reached the subscriber's instance yet. Common right after promoting. | Push again in a few hours. |
+| `IneligibleUpgrade` (other messages) | The package is not installed, a beta is installed, or the org already has this or a newer version. | Check the org on the Subscribers tab. |
+| `UnclassifiedError`: "Unexpected Failure" | Salesforce does not reveal the cause. | Install the version into that org by hand (Versions tab, `i`) to see the real error. |
+| `ApexTestFailure` | An Apex test failed in the subscriber org. | Fix the test or code and create a new version. |
 
-## What it queries
+## What it runs
 
-All queries use the standard Data API through `sf data query` against your packaging org:
+Reading:
 
-- `PackagePushRequest`: push requests and their status
-- `PackagePushJob`: one job per subscriber org
-- `PackagePushError`: errors of failed jobs
-- `MetadataPackageVersion`: version numbers and release state
-- `PackageSubscriber`: subscriber org names, types, instances and installed versions
+- `sf data query` (Data API): `PackagePushRequest`, `PackagePushJob`, `PackagePushError`, `MetadataPackageVersion`, `PackageSubscriber`
+- `sf data query --use-tooling-api`: `Package2` (to filter everything to your package), `DeployRequest`
+- `sf org list --all`, `sf package installed list`, `sf package version list --verbose`
+- Local aliases from `~/.sfdx/alias.json`
 
-Local `sf` aliases are read from `~/.sfdx` to show which subscriber orgs you are logged in to.
+Writing, always after a confirmation:
+
+- `sf package push-upgrade schedule` / `abort`
+- `sf package version promote` / `create`, `sf package install`
+- `sf project deploy start`, `sf apex run test`
+- `sf org open`, `sf org delete scratch`
+
+Nothing leaves your machine except through the `sf` CLI. The output of `sf org open` is never shown or stored, because it contains a session id.
 
 ## Troubleshooting
 
 - **"could not run `sf`"**: install the Salesforce CLI and make sure `sf --version` works in the same terminal.
-- **"sObject type 'PackagePushRequest' is not supported"** or **"No such column"**: the org is not the packaging org of your package, or push upgrades are not enabled for it. Check `--target-org`. A "No such column" error can also mean that `sf` could not reach the org and fell back to an old API version; check your connection with `sf org display --target-org <alias>`.
-- **Loading takes a few seconds**: every query starts the `sf` CLI. Five queries run in parallel, usually in 3 to 8 seconds.
-- **No colors or broken borders**: use a terminal with true color and Unicode support, for example iTerm2, WezTerm, Ghostty, Kitty or Windows Terminal.
+- **"sObject type 'PackagePushRequest' is not supported"**: the Dev Hub is not the owner of your package, or push upgrades are not enabled. Check `dev_hub`.
+- **"package ... not found"**: `package` must be the exact package name or the `0Ho` id from `sfdx-project.json`.
+- **Loading takes several seconds**: every query starts the `sf` CLI. The Push tab runs six queries in parallel.
+- **No colors or broken borders**: use a terminal with true color and Unicode, for example iTerm2, WezTerm, Ghostty, Kitty or Windows Terminal.
 
 ## Development
 
 ```bash
-cargo run -- --demo   # run with sample data
-cargo test            # render and mouse tests against an in-memory terminal
+cargo run -- --demo
+cargo test                                   # render, input, parsing and command tests, no org needed
 cargo clippy --all-targets -- -D warnings
 ```
 
-Pushing a tag like `v0.1.0` builds the binaries and creates a GitHub release.
+Pushing a tag like `v0.2.0` builds binaries for macOS, Linux and Windows and creates a GitHub release.
 
-Built with [Ratatui](https://ratatui.rs) and [crossterm](https://github.com/crossterm-rs/crossterm). The color palette is [Catppuccin Mocha](https://catppuccin.com).
+Built with [Ratatui](https://ratatui.rs). Colors: [Catppuccin Mocha](https://catppuccin.com).
 
 ## License
 
