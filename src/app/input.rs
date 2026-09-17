@@ -291,6 +291,10 @@ impl App {
                     wizard.check_all_behind();
                     Outcome::Nothing
                 }
+                (Step::Orgs, KeyCode::Char('m')) => {
+                    wizard.check_important_behind();
+                    Outcome::Nothing
+                }
                 (Step::Orgs, KeyCode::Char('n')) => {
                     wizard.check_none();
                     Outcome::Nothing
@@ -408,6 +412,8 @@ impl App {
 fn tab_action(tab: TabId, key: char) -> Option<Action> {
     Some(match (tab, key) {
         (TabId::Push | TabId::Subscribers, 's') => Action::Schedule,
+        (TabId::Subscribers, 'm') => Action::ToggleImportant,
+        (TabId::Subscribers, 'e') => Action::RenameOrg,
         (TabId::Push, 'a') => Action::Abort,
         (TabId::Push, 'f') => Action::RetryFailed,
         (TabId::Push | TabId::Subscribers | TabId::Versions | TabId::Deploy, 'c') => Action::Copy,

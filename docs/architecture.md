@@ -90,5 +90,8 @@ Implemented in `src/config.rs::load_from()`, highest priority first: CLI flags �
 `sf-cockpit.toml` (found by walking up from the cwd) → `~/.config/sf-cockpit/config.toml` (or
 `$XDG_CONFIG_HOME`) → the `sf` CLI's own config (`target-dev-hub`/`target-org`) → `sfdx-project.json`'s
 `packageAliases` (for `package` only). Each resolved field also records an `Origin` so the Settings tab can
-show the user where a value came from and which file a write will land in. See README.md § Configuration
+show the user where a value came from and which file a write will land in. `[orgs.<org id>]` notes (own name,
+`important`) merge per org and per field across the files, are normalized to 15-character org keys in
+`Config.orgs`, and are written with `config::save_org_note()`. They live only in the config, never in
+`PushData` or the cache, so changing them needs no reload and no cache `FORMAT` bump. See README.md § Configuration
 for the user-facing config file format and keys.

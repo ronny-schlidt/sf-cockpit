@@ -83,13 +83,77 @@ impl App {
 
     /// The requested tab, or Settings when something the app needs is missing.
     pub fn open_first_tab(&mut self, requested: TabId) {
-        if self.cfg.needs_setup() {
-            self.show_tab(TabId::Settings);
-            self.setting_rows.select(Some(0));
-            self.notify("Choose your Dev Hub to get started", true);
-        } else {
+        let missing = self.missing_settings();
+        let Some(first) = missing.first().copied() else {
             self.show_tab(requested);
+            return;
+        };
+        self.show_tab(TabId::Settings);
+        self.setting_rows
+            .select(ROWS.iter().position(|row| *row == first));
+        self.modal = Some(Modal::Message {
+            title: "Setup incomplete".into(),
+            body: self.setup_message(&missing),
+            error: true,
+        });
+    }
+
+    /// Settings the app cannot work well without, most important first.
+    pub fn missing_settings(&self) -> Vec<SettingKey> {
+        let mut missing = Vec::new();
+        if self.cfg.needs_setup() {
+            missing.push(SettingKey::DevHub);
         }
+        if self.cfg.package.is_none() {
+            missing.push(SettingKey::Package);
+        }
+        if self.cfg.scratch_org.is_none() {
+            missing.push(SettingKey::ScratchOrg);
+        }
+        missing
+    }
+
+    /// Lines starting with `# ` are headings in the message dialog.
+    fn setup_message(&self, missing: &[SettingKey]) -> Vec<String> {
+        let mut body = Vec::new();
+        if self.cfg.project_dir.is_none() {
+            let cwd = std::env::current_dir()
+                .map(|dir| tilde(&dir))
+                .unwrap_or_else(|_| "this folder".into());
+            body.push("# You are not inside a Salesforce project".into());
+            body.push(format!(
+                "sf-cockpit was started in {cwd}. There is no sf-cockpit.toml or sfdx-project.json in this \
+                 folder or above it."
+            ));
+            body.push(
+                "If you meant to work on a project, quit with q and start sf-cockpit in its folder. The \
+                 project's settings are then used automatically."
+                    .into(),
+            );
+            if let Some(path) = &self.cfg.save_path {
+                body.push(format!(
+                    "Otherwise the settings you choose now are saved globally to {}.",
+                    tilde(path)
+                ));
+            }
+            body.push(String::new());
+        }
+        body.push("# Missing settings".into());
+        for key in missing {
+            body.push(format!(
+                "  • {}: {}",
+                key.label(),
+                match key {
+                    SettingKey::DevHub => "the org that owns your package. Nothing can be loaded without it.",
+                    SettingKey::Package => "which package to show, if the Dev Hub owns more than one.",
+                    SettingKey::ScratchOrg => "the default org for deploys, Apex tests and installs.",
+                    _ => "",
+                }
+            ));
+        }
+        body.push(String::new());
+        body.push("Close this with Enter, then choose them on the Settings tab.".into());
+        body
     }
 
     /// Problems with the current settings, most important first, for the Settings tab.
@@ -472,6 +536,80 @@ impl App {
             }
             _ => {}
         }
+    }
+
+    fn selected_subscriber_key(&mut self) -> Option<(String, String)> {
+        let found = self
+            .filtered_subscribers()
+            .get(self.subscribers.selected()?)
+            .map(|s| (s.org_key.clone(), s.name.clone()));
+        if found.is_none() {
+            self.notify("Select an org first", true);
+        }
+        found
+    }
+
+    pub(super) fn toggle_important(&mut self) {
+        let Some((key, name)) = self.selected_subscriber_key() else {
+            return;
+        };
+        let mut note = self.cfg.org_note(&key).cloned().unwrap_or_default();
+        let important = !self.cfg.is_important(&key);
+        note.important = important.then_some(true);
+        let name = self.cfg.org_display_name(&key, &name);
+        let what = if important {
+            format!("Marked {name} as important")
+        } else {
+            format!("Unmarked {name}")
+        };
+        self.save_org_note(&key, note, what);
+    }
+
+    pub(super) fn rename_org(&mut self) {
+        let Some((key, name)) = self.selected_subscriber_key() else {
+            return;
+        };
+        self.modal = Some(Modal::Input(Input {
+            title: format!("Name for {name}"),
+            prompt: format!("Your own name for org {key}, saved in the config file. Empty removes it."),
+            value: self
+                .cfg
+                .org_note(&key)
+                .and_then(|n| n.name.clone())
+                .unwrap_or_default(),
+            purpose: InputPurpose::OrgName { org_key: key },
+        }));
+    }
+
+    /// Writes an org note to the active config file and applies it at once.
+    pub(super) fn save_org_note(&mut self, key: &str, note: config::OrgNote, what: String) {
+        let saved_to = match self.cfg.save_path.clone() {
+            Some(path) => match config::save_org_note(&path, key, &note) {
+                Ok(()) => Some(path),
+                Err(error) => {
+                    self.notify(format!("Could not save: {error:#}"), true);
+                    return;
+                }
+            },
+            None => None,
+        };
+        let key = crate::sf::query::org_key(key);
+        if note.is_empty() {
+            self.cfg.orgs.remove(&key);
+        } else {
+            self.cfg.orgs.insert(key.clone(), note);
+        }
+        // The list is sorted by marking and name: keep the cursor on the same org.
+        if let Some(row) = self.filtered_subscribers().iter().position(|s| s.org_key == key) {
+            self.subscribers.select(Some(row));
+        }
+        self.notify(
+            match saved_to {
+                Some(path) => format!("{what} in {}", tilde(&path)),
+                None => format!("{what} (demo mode, not saved)"),
+            },
+            false,
+        );
     }
 
     /// After the Dev Hub or package changed: show that package's cached data and refresh it.

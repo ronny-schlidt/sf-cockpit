@@ -2,7 +2,7 @@ use crate::app::Loadable;
 use crate::app::modal::{Modal, Step};
 use crate::app::{App, TabId, Target};
 use crate::config::Config;
-use crate::demo::{self, GLOBEX, INITECH, STARK};
+use crate::demo::{self, GLOBEX, INITECH, STARK, UMBRELLA};
 use crate::sf::push::build_schedule;
 use crate::ui;
 use ratatui::Terminal;
@@ -183,8 +183,30 @@ fn schedule_wizard_preselects_orgs_behind_and_runs_the_push() {
     key(&mut app, KeyCode::Enter);
     let screen = render(&mut app);
     println!("{screen}");
-    assert!(screen.contains("3 of 5 orgs"), "{screen}");
+    assert!(
+        screen.contains("2 of 5 orgs"),
+        "marked orgs behind are preselected: {screen}"
+    );
     assert!(screen.contains("already on this version"));
+    let Some(Modal::Wizard(wizard)) = &app.modal else {
+        panic!("wizard is open");
+    };
+    assert!(
+        wizard.orgs[0].important && wizard.orgs[1].important,
+        "marked orgs first"
+    );
+
+    key(&mut app, KeyCode::Char('a'));
+    assert!(
+        render(&mut app).contains("3 of 5 orgs"),
+        "a checks every org behind"
+    );
+    key(&mut app, KeyCode::Char('m'));
+    assert!(
+        render(&mut app).contains("2 of 5 orgs"),
+        "m checks the marked orgs behind"
+    );
+    key(&mut app, KeyCode::Char('a'));
 
     key(&mut app, KeyCode::Enter);
     keys(&mut app, "tomorrow");
@@ -205,7 +227,7 @@ fn schedule_wizard_preselects_orgs_behind_and_runs_the_push() {
     let expected = build_schedule(
         "demo",
         "04t000000000003",
-        &[GLOBEX.to_string(), INITECH.to_string(), STARK.to_string()],
+        &[GLOBEX.to_string(), STARK.to_string(), INITECH.to_string()],
         None,
     );
     assert_eq!(app.pending_argv(), Some(expected));
@@ -511,6 +533,21 @@ fn missing_dev_hub_opens_settings_and_guides_the_user() {
     );
     let screen = render(&mut app);
     println!("{screen}");
+    assert!(
+        screen.contains("Setup incomplete"),
+        "a popup explains what is missing: {screen}"
+    );
+    assert!(
+        screen.contains("Dev Hub: the org that owns your package"),
+        "{screen}"
+    );
+    assert!(
+        !screen.contains("not inside a Salesforce project"),
+        "demo has a project dir"
+    );
+    key(&mut app, KeyCode::Enter);
+    assert!(app.modal.is_none());
+    let screen = render(&mut app);
     assert!(screen.contains("No Dev Hub chosen. Select Dev Hub"), "{screen}");
 
     key(&mut app, KeyCode::Char('1'));
@@ -534,4 +571,91 @@ fn missing_dev_hub_opens_settings_and_guides_the_user() {
     );
     let screen = render(&mut app);
     assert!(!screen.contains("No Dev Hub chosen"), "{screen}");
+}
+
+#[test]
+fn subscribers_can_be_marked_and_named_and_are_saved() {
+    let dir = crate::tests::temp_dir("org-notes");
+    let path = dir.join("sf-cockpit.toml");
+    std::fs::write(&path, "# keep me\ndev_hub = \"demo\"\n").unwrap();
+    let mut app = app();
+    app.cfg.save_path = Some(path.clone());
+
+    key(&mut app, KeyCode::Char('2'));
+    let screen = render(&mut app);
+    println!("{screen}");
+    assert!(screen.contains("2 marked"), "{screen}");
+    assert!(screen.contains("Umbrella APAC"), "own name is shown: {screen}");
+    assert!(
+        screen.contains("Umbrella Health"),
+        "with the Salesforce name next to it"
+    );
+    let first = app.filtered_subscribers()[0].org_key.clone();
+    assert_eq!(first, GLOBEX, "marked orgs first");
+
+    let umbrella = app
+        .filtered_subscribers()
+        .iter()
+        .position(|s| s.org_key == UMBRELLA)
+        .unwrap();
+    app.subscribers.select(Some(umbrella));
+    key(&mut app, KeyCode::Char('m'));
+    assert!(app.cfg.is_important(UMBRELLA));
+    let selected = app.filtered_subscribers()[app.subscribers.selected().unwrap()]
+        .org_key
+        .clone();
+    assert_eq!(selected, UMBRELLA, "the cursor follows the org after re-sorting");
+
+    key(&mut app, KeyCode::Char('e'));
+    for _ in 0.."Umbrella APAC".len() {
+        key(&mut app, KeyCode::Backspace);
+    }
+    keys(&mut app, "Umbrella Key Account");
+    key(&mut app, KeyCode::Enter);
+    assert_eq!(app.cfg.org_display_name(UMBRELLA, "x"), "Umbrella Key Account");
+
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.starts_with("# keep me\n"), "{text}");
+    let saved = crate::config::FileConfig::parse(&text).unwrap().orgs.unwrap();
+    let note = &saved[UMBRELLA];
+    assert_eq!(note.name.as_deref(), Some("Umbrella Key Account"));
+    assert_eq!(note.important, Some(true));
+
+    keys(&mut app, "/★");
+    key(&mut app, KeyCode::Enter);
+    assert_eq!(app.filtered_subscribers().len(), 3, "★ filters to marked orgs");
+}
+
+#[test]
+fn starting_outside_a_project_says_so_in_the_setup_popup() {
+    let mut cfg = Config::demo();
+    cfg.project_dir = None;
+    cfg.package = None;
+    cfg.scratch_org = None;
+    cfg.save_path = Some(std::path::PathBuf::from("/tmp/sf-cockpit/config.toml"));
+    let mut app = App::new(cfg, true);
+    app.open_first_tab(TabId::Push);
+    assert_eq!(app.tab, TabId::Settings);
+    assert_eq!(
+        app.setting_rows.selected(),
+        Some(1),
+        "the first missing setting is selected"
+    );
+    let screen = render(&mut app);
+    println!("{screen}");
+    assert!(
+        screen.contains("You are not inside a Salesforce project"),
+        "{screen}"
+    );
+    assert!(screen.contains("quit with q"), "{screen}");
+    assert!(screen.contains("saved globally to"), "{screen}");
+    assert!(screen.contains("/tmp/sf-cockpit/config.toml"), "{screen}");
+    assert!(screen.contains("Package: which package"), "{screen}");
+    assert!(screen.contains("Scratch org: the default org"), "{screen}");
+    assert!(!screen.contains("  • Dev Hub:"), "the Dev Hub is set: {screen}");
+
+    let mut complete = App::new(Config::demo(), true);
+    complete.open_first_tab(TabId::Orgs);
+    assert_eq!(complete.tab, TabId::Orgs, "no popup when nothing is missing");
+    assert!(complete.modal.is_none());
 }

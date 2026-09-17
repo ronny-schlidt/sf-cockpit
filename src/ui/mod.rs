@@ -304,6 +304,8 @@ fn draw_bottom_bar(frame: &mut Frame, app: &mut App, area: Rect) {
         TabId::Subscribers => buttons.extend([
             ("/", "Filter", Some(Action::Filter)),
             ("s", "Schedule", Some(Action::Schedule)),
+            ("m", "Mark", Some(Action::ToggleImportant)),
+            ("e", "Name", Some(Action::RenameOrg)),
         ]),
         TabId::Orgs => buttons.extend([
             ("/", "Filter", Some(Action::Filter)),

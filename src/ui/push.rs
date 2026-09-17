@@ -147,6 +147,16 @@ fn draw_summary(frame: &mut Frame, app: &App, data: &PushData, area: Rect) {
     frame.render_widget(Paragraph::new(lines), inner);
 }
 
+/// The org's own name from the config, with a star for marked orgs.
+fn org_title(app: &App, data: &PushData, org_key: &str) -> String {
+    let name = app.org_label(data, org_key);
+    if app.cfg.is_important(org_key) {
+        format!("★ {name}")
+    } else {
+        name
+    }
+}
+
 fn draw_jobs(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
     let jobs = app.jobs_in(data);
     let hover = hover_row(app.hover, area, &app.jobs);
@@ -161,7 +171,7 @@ fn draw_jobs(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
                 .unwrap_or_default();
             Row::new([
                 Cell::from(colored("●", status_color(&job.status))),
-                Cell::from(value(data.org_name(&job.org_key))),
+                Cell::from(value(org_title(app, data, &job.org_key))),
                 Cell::from(colored(alias, LAVENDER)),
                 Cell::from(dim(subscriber.map(|s| s.org_type.clone()).unwrap_or_default())),
                 Cell::from(dim(subscriber.map(|s| s.instance.clone()).unwrap_or_default())),
@@ -210,7 +220,7 @@ fn draw_details(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
 
     let subscriber = data.subscriber(&job.org_key);
     let mut lines = vec![Line::from(vec![
-        Span::styled(data.org_name(&job.org_key), Style::new().fg(TEXT).bold()),
+        Span::styled(org_title(app, data, &job.org_key), Style::new().fg(TEXT).bold()),
         colored(format!("  {}", job.org_key), OVERLAY0),
     ])];
 

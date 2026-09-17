@@ -3,7 +3,7 @@
 A terminal cockpit for Salesforce ISVs. It puts the `sf` commands you run every week behind one keyboard- and mouse-driven UI:
 
 - **Push upgrades:** see which orgs failed and why, schedule new pushes, retry failed orgs, abort pending requests.
-- **Subscribers:** every org with your package and whether it is behind the latest release.
+- **Subscribers:** every org with your package and whether it is behind the latest release. Mark important customer orgs and give orgs your own names.
 - **Orgs:** all orgs the `sf` CLI knows, with status, scratch org expiry, duplicate aliases and the installed package version.
 - **Versions:** package versions with coverage and subscriber count; copy install links, promote, install, create new versions.
 - **Deploy & Test:** deployment history of an org, deploy your project with a live log, run Apex tests and see failures and coverage.
@@ -62,9 +62,15 @@ source_dir = "force-app"                          # what D deploys
 definition_file = "config/project-scratch-def.json"
 skip_ancestor_check = false
 limit = 30                                        # push requests to load
+
+[orgs.00D5g000001AbCd]                            # subscriber org id, 15 or 18 characters
+name = "ACME Production"                          # your own name, shown instead of the org name
+important = true                                  # listed first, preselected for push upgrades
 ```
 
 Unknown keys are an error, so typos do not go unnoticed.
+
+The `[orgs.*]` tables are usually written from the Subscribers tab (`m` marks an org, `e` names it) into the same file as the other settings. Keep them in the project's `sf-cockpit.toml` so your team sees the same names. The subscriber list itself comes from `PackageSubscriber` on the Dev Hub. Only the names and markings are stored locally.
 
 You rarely need to edit these files by hand: the **Settings** tab (`6`) lets you pick `dev_hub`, `package` and `scratch_org` from your orgs and your Dev Hub's packages. It writes into `sf-cockpit.toml` when you started inside a project, otherwise into the global file, and only touches the changed line. The tab also shows where every value comes from. `sf-cockpit --print --tab settings` prints the same overview.
 
@@ -85,6 +91,8 @@ The mouse works everywhere: click tabs, rows and the buttons in the footer, scro
 | `L` / `x` | everywhere | Show the log of the last command / cancel the running command |
 | `q`, `Esc` | everywhere | Quit (`Esc` first clears a filter) |
 | `s` | Push, Subscribers | Schedule a push upgrade |
+| `m` | Subscribers | Mark or unmark the org as important (★) |
+| `e` | Subscribers | Give the org your own name (empty removes it) |
 | `a` | Push | Abort the selected request (Created or Pending only) |
 | `f` | Push | Retry: schedule again for the failed orgs of the selected request |
 | `c` | most tabs | Copy details (Orgs: username) |
@@ -99,7 +107,7 @@ The mouse works everywhere: click tabs, rows and the buttons in the footer, scro
 
 ### Scheduling a push upgrade
 
-`s` opens a four-step wizard: choose the released version, choose the orgs (orgs behind that version are preselected, orgs already on it are flagged), choose a start time in UTC or start right away, then confirm. The confirmation shows the exact command. After scheduling, the Push tab selects the new request and refreshes itself every 30 seconds while a request is pending or in progress.
+`s` opens a four-step wizard: choose the released version, choose the orgs (orgs behind that version are preselected, only the marked ★ ones if you marked any; `a` checks every org behind, `m` only the marked ones, `n` none; orgs already on the version are flagged), choose a start time in UTC or start right away, then confirm. The confirmation shows the exact command. After scheduling, the Push tab selects the new request and refreshes itself every 30 seconds while a request is pending or in progress.
 
 If Salesforce rejects some orgs, `sf` writes `job_errors/push_request_<id>_errors.log` into the project directory and the request can stay in `Created`. Abort it with `a` and schedule again without those orgs.
 

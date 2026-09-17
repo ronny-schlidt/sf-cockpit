@@ -61,6 +61,8 @@ pub enum Action {
     PickDeployOrg,
     EditSetting,
     ClearCache,
+    ToggleImportant,
+    RenameOrg,
     ModalConfirm,
     ModalCancel,
     ModalBack,
@@ -662,12 +664,17 @@ impl App {
                 if needle.is_empty() {
                     return true;
                 }
+                if matches!(needle.as_str(), "★" | "important") {
+                    return self.cfg.is_important(&s.org_key);
+                }
                 let alias = data
                     .alias(&s.org_key)
                     .map(|o| o.alias.as_str())
                     .unwrap_or_default();
+                let own_name = self.cfg.org_display_name(&s.org_key, "");
                 [
                     s.name.as_str(),
+                    &own_name,
                     alias,
                     &s.org_key,
                     &s.instance,
@@ -678,8 +685,19 @@ impl App {
                 .any(|field| field.to_lowercase().contains(&needle))
             })
             .collect();
-        subscribers.sort_by_key(|s| (data.is_latest(&s.version_id), s.name.to_lowercase()));
+        subscribers.sort_by_key(|s| {
+            (
+                !self.cfg.is_important(&s.org_key),
+                data.is_latest(&s.version_id),
+                self.cfg.org_display_name(&s.org_key, &s.name).to_lowercase(),
+            )
+        });
         subscribers
+    }
+
+    /// The user's name for an org from the config, else the subscriber name.
+    pub fn org_label(&self, data: &PushData, org_key: &str) -> String {
+        self.cfg.org_display_name(org_key, &data.org_name(org_key))
     }
 
     pub fn orgs_in<'a>(&self, orgs: &'a [OrgInfo]) -> Vec<&'a OrgInfo> {
@@ -928,6 +946,8 @@ impl App {
             Action::PickDeployOrg => self.pick_deploy_org(),
             Action::EditSetting => self.edit_setting(),
             Action::ClearCache => self.clear_cache(),
+            Action::ToggleImportant => self.toggle_important(),
+            Action::RenameOrg => self.rename_org(),
             Action::ModalConfirm | Action::ModalCancel | Action::ModalBack | Action::ModalRow(_) => {
                 self.modal_action(action)
             }
@@ -961,7 +981,8 @@ impl App {
             .iter()
             .map(|s| OrgChoice {
                 key: s.org_key.clone(),
-                name: s.name.clone(),
+                name: self.cfg.org_display_name(&s.org_key, &s.name),
+                important: self.cfg.is_important(&s.org_key),
                 org_type: s.org_type.clone(),
                 installed: data.version_label(&s.version_id),
                 installed_key: data.versions.get(&s.version_id).map(Version::key),
@@ -969,7 +990,7 @@ impl App {
                 warn: None,
             })
             .collect();
-        orgs.sort_by_key(|o| o.name.to_lowercase());
+        orgs.sort_by_key(|o| (!o.important, o.name.to_lowercase()));
 
         let (version, preselected, retry_of) = if retry {
             let request = self.selected_request().ok_or("Select a push request first")?;
@@ -1662,6 +1683,16 @@ impl App {
                     danger: false,
                     action: PendingAction::RunTests { org, classes },
                 }));
+            }
+            InputPurpose::OrgName { org_key } => {
+                let name = Some(value.trim().to_string()).filter(|n| !n.is_empty());
+                let mut note = self.cfg.org_note(&org_key).cloned().unwrap_or_default();
+                note.name = name.clone();
+                let what = match &name {
+                    Some(name) => format!("Named the org {name}"),
+                    None => "Removed the org name".to_string(),
+                };
+                self.save_org_note(&org_key, note, what);
             }
             InputPurpose::Limit => match value.trim().parse::<usize>() {
                 Ok(limit) if (1..=500).contains(&limit) => {
