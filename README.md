@@ -165,6 +165,25 @@ Nothing leaves your machine except through the `sf` CLI, apart from the daily up
 - **Loading takes several seconds**: every query starts the `sf` CLI. The Push tab runs six queries in parallel.
 - **No colors or broken borders**: use a terminal with true color and Unicode, for example iTerm2, WezTerm, Ghostty, Kitty or Windows Terminal.
 
+## Uninstall
+
+sf-cockpit is a single file. It installs nothing in your orgs and runs no background service. Remove the binary, and if you like, its cache and global config:
+
+```bash
+rm ~/.local/bin/sf-cockpit            # or wherever SF_COCKPIT_BIN_DIR pointed
+rm -rf ~/Library/Caches/sf-cockpit    # cache on macOS
+rm -rf ~/.cache/sf-cockpit            # cache on Linux ($XDG_CACHE_HOME/sf-cockpit if set)
+rm -rf ~/.config/sf-cockpit           # global config ($XDG_CONFIG_HOME/sf-cockpit if set)
+```
+
+On Windows (PowerShell), delete `sf-cockpit.exe` where you put it and remove that folder from your `PATH`, then:
+
+```powershell
+Remove-Item "$HOME\.cache\sf-cockpit", "$HOME\.config\sf-cockpit" -Recurse -ErrorAction SilentlyContinue
+```
+
+Left alone on purpose: `sf-cockpit.toml` in your projects (it may be shared with your team through git), the Salesforce CLI with its org logins, and the `job_errors/` logs that `sf` writes.
+
 ## Development
 
 ```bash
