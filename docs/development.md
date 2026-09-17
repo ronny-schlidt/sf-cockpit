@@ -49,6 +49,10 @@ same command a different way.
 
 `docs/demo.gif` (top of README.md) is recorded from `--demo` with vhs; re-record it when the UI changes visibly.
 
+Linux binaries are static musl builds (`*-unknown-linux-musl`), so they run on any glibc. The release also
+attaches them under the old `*-unknown-linux-gnu` archive names, because 0.3.1 and older look for those
+when updating; drop the `compat` entries in `release.yml` once nobody runs those versions.
+
 Running copies notice the release within 24 hours (`src/update.rs`, cache key `update`). To see the update
 flow locally, build with a lower `version` and run `SF_COCKPIT_REPO=owner/repo target/debug/sf-cockpit --check-update`,
 or delete `update.json` from the cache directory to force a fresh check at the next TUI start.
