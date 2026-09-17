@@ -9,6 +9,8 @@ A terminal cockpit for Salesforce ISVs. It puts the `sf` commands you run every 
 - **Deploy & Test:** deployment history of an org, deploy your project with a live log, run Apex tests and see failures and coverage.
 - **Settings:** pick the Dev Hub, package and scratch org from lists, saved straight into your config file.
 
+![sf-cockpit demo: a failed push upgrade with its errors, the retry dialog, subscribers, versions and orgs](docs/demo.gif)
+
 Every tab opens instantly with the data of the last run and refreshes itself in the background; a spinner next to a tab name shows which tabs are still refreshing.
 
 Every command that changes something shows the exact `sf` command and asks first. Push upgrades, promotions and installs outside your scratch org are marked as dangerous.

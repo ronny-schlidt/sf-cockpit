@@ -47,6 +47,8 @@ same command a different way.
 3. `.github/workflows/release.yml` builds every platform and publishes the release with generated notes
    (edit them on GitHub for nicer "what's new" text — the app shows the release body as-is).
 
+`docs/demo.gif` (top of README.md) is recorded from `--demo` with vhs; re-record it when the UI changes visibly.
+
 Running copies notice the release within 24 hours (`src/update.rs`, cache key `update`). To see the update
 flow locally, build with a lower `version` and run `SF_COCKPIT_REPO=owner/repo target/debug/sf-cockpit --check-update`,
 or delete `update.json` from the cache directory to force a fresh check at the next TUI start.
