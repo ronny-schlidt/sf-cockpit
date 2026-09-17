@@ -22,7 +22,20 @@ brew install gh && gh auth login          # once
 gh api -H "Accept: application/vnd.github.raw" repos/ronny-schlidt/sf-cockpit/contents/install.sh | sh
 ```
 
-The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN_DIR`). It downloads the prebuilt binary of the latest release and checks its checksum. Without a release for your platform it clones the repository and builds it with cargo, which needs [Rust](https://rustup.rs). From a clone, `./install.sh` builds and installs the local code. Run the same command again to update.
+The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN_DIR`). It downloads the prebuilt binary of the latest release and checks its checksum. Without a release for your platform it clones the repository and builds it with cargo, which needs [Rust](https://rustup.rs). From a clone, `./install.sh` builds and installs the local code.
+
+## Updates
+
+sf-cockpit checks GitHub for a newer release once a day in the background. When there is one, the top bar shows `↑ 0.4.0 available · N`. Press `N` to read what's new and `Enter` to update: the new binary is downloaded, its checksum checked, and it replaces the running one. Start sf-cockpit again to use it; the first start after an update offers the release notes once more.
+
+From the command line:
+
+```bash
+sf-cockpit --check-update     # prints the newer version and its notes; exit code 10 if there is one
+sf-cockpit --update           # installs the latest release in place
+```
+
+Updates use `gh` when it is installed and logged in, otherwise plain `curl` (enough once the repository is public). Turn the background check off with `SF_COCKPIT_NO_UPDATE_CHECK=1`. Nothing is sent to GitHub except the request for the latest release.
 
 You also need the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`), logged in to the Dev Hub that owns your package:
 
@@ -89,6 +102,7 @@ The mouse works everywhere: click tabs, rows and the buttons in the footer, scro
 | `↑` `↓`, `j` `k`, `PgUp` `PgDn`, `g` `G` | everywhere | Move the selection or scroll |
 | `r` | everywhere | Reload the current tab (on Settings: all tabs) |
 | `L` / `x` | everywhere | Show the log of the last command / cancel the running command |
+| `N` | everywhere | What's new: install an available update, or read the notes after one |
 | `q`, `Esc` | everywhere | Quit (`Esc` first clears a filter) |
 | `s` | Push, Subscribers | Schedule a push upgrade |
 | `m` | Subscribers | Mark or unmark the org as important (★) |
@@ -136,7 +150,7 @@ Writing, always after a confirmation:
 - `sf project deploy start`, `sf apex run test`
 - `sf org open`, `sf org delete scratch`
 
-Nothing leaves your machine except through the `sf` CLI. The output of `sf org open` is never shown or stored, because it contains a session id.
+Nothing leaves your machine except through the `sf` CLI, apart from the daily update check against GitHub (see [Updates](#updates)). The output of `sf org open` is never shown or stored, because it contains a session id.
 
 ## Troubleshooting
 
@@ -154,7 +168,7 @@ cargo test                                   # render, input, parsing and comman
 cargo clippy --all-targets -- -D warnings
 ```
 
-Pushing a tag like `v0.2.0` builds binaries for macOS, Linux and Windows and creates a GitHub release.
+To release: bump `version` in `Cargo.toml`, commit, then push a tag like `v0.3.0` (`git tag v0.3.0 && git push origin v0.3.0`). That builds binaries for macOS, Linux and Windows and creates a GitHub release with generated notes; running copies offer the update within a day.
 
 Built with [Ratatui](https://ratatui.rs). Colors: [Catppuccin Mocha](https://catppuccin.com).
 

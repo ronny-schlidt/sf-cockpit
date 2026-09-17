@@ -5,6 +5,7 @@ use crate::app::modal::{Confirm, Input, Modal, Picker, Step, Wizard};
 use crate::app::{Action, App};
 use crate::sf::runner::TaskId;
 use crate::theme::*;
+use crate::update::{self, ReleaseInfo};
 use chrono::{Local, NaiveDateTime};
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Margin, Rect};
@@ -25,6 +26,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         Modal::Picker(picker) => draw_picker(frame, app, area, picker),
         Modal::Wizard(wizard) => draw_wizard(frame, app, area, wizard),
         Modal::TaskLog { id, scroll } => draw_log(frame, app, area, *id, *scroll),
+        Modal::Update { release, installed } => draw_update(frame, app, area, release, *installed),
         Modal::Message { title, body, error } => draw_message(frame, app, area, title, body, *error),
     }
     app.modal = Some(modal);
@@ -533,6 +535,71 @@ fn draw_message(frame: &mut Frame, app: &mut App, area: Rect, title: &str, body:
     let (content, row) = dialog(frame, area, width, height, title, color);
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), content);
     buttons(frame, app, row, &[("Enter", "Close", Some(Action::ModalCancel))]);
+}
+
+/// Release notes are Markdown; headings and bullets get a light touch, the rest is shown as written.
+fn draw_update(frame: &mut Frame, app: &mut App, area: Rect, release: &ReleaseInfo, installed: bool) {
+    const MAX_NOTE_LINES: usize = 24;
+    let mut lines = vec![if installed {
+        Line::styled(
+            format!("You are now on sf-cockpit {}.", release.version),
+            Style::new().fg(TEXT).bold(),
+        )
+    } else {
+        Line::styled(
+            format!(
+                "sf-cockpit {} is available, you have {}.",
+                release.version,
+                update::current_version()
+            ),
+            Style::new().fg(TEXT).bold(),
+        )
+    }];
+    let notes: Vec<&str> = release.notes.lines().filter(|l| !l.trim().is_empty()).collect();
+    if !notes.is_empty() {
+        lines.push(Line::default());
+        lines.push(Line::styled("What's new", Style::new().fg(OVERLAY0).bold()));
+    }
+    for note in notes.iter().take(MAX_NOTE_LINES) {
+        let trimmed = note.trim_start();
+        lines.push(if let Some(heading) = trimmed.strip_prefix('#') {
+            Line::styled(
+                heading.trim_start_matches('#').trim().to_string(),
+                Style::new().fg(PEACH).bold(),
+            )
+        } else if let Some(item) = trimmed.strip_prefix("* ").or_else(|| trimmed.strip_prefix("- ")) {
+            Line::styled(format!("• {item}"), Style::new().fg(TEXT))
+        } else {
+            Line::styled(note.to_string(), Style::new().fg(TEXT))
+        });
+    }
+    if notes.len() > MAX_NOTE_LINES || notes.is_empty() {
+        lines.push(Line::default());
+        lines.push(Line::styled(release.url.clone(), Style::new().fg(SUBTEXT)));
+    }
+    let text = Text::from(lines);
+    let width = width_for(area, 100);
+    let height = wrapped_height(&text, width.saturating_sub(4)) + 5;
+    let title = if installed {
+        "What's new"
+    } else {
+        "Update available"
+    };
+    let (content, row) = dialog(frame, area, width, height, title, GREEN);
+    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), content);
+    if installed {
+        buttons(frame, app, row, &[("Enter", "Close", Some(Action::ModalCancel))]);
+    } else {
+        buttons(
+            frame,
+            app,
+            row,
+            &[
+                ("Enter", "Update now", Some(Action::ModalConfirm)),
+                ("Esc", "Later", Some(Action::ModalCancel)),
+            ],
+        );
+    }
 }
 
 fn truncate(text: &str, max: usize) -> String {

@@ -13,6 +13,7 @@ use serde_json::Value;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use crate::update::ReleaseInfo;
 use deploy::DeployRecord;
 use orgs::OrgInfo;
 use push::{PackageIds, PushData};
@@ -43,6 +44,10 @@ pub enum Msg {
         org: String,
         result: Result<Vec<DeployRecord>, String>,
     },
+    /// A newer release of sf-cockpit, or None.
+    UpdateChecked(Option<ReleaseInfo>),
+    /// The installed version, or why the update failed.
+    UpdateInstalled(Result<String, String>),
     TaskLine {
         id: TaskId,
         line: String,

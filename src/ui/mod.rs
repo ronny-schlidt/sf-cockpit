@@ -195,6 +195,15 @@ fn status_line(app: &App, spinner: &str, detail: Detail) -> Line<'static> {
             ));
             spans.push(Span::raw("  "));
         }
+        if let Some(release) = &app.update {
+            let text = if app.updating {
+                format!(" {spinner} updating to {} ", release.version)
+            } else {
+                format!(" ↑ {} available · N ", release.version)
+            };
+            spans.push(Span::styled(text, Style::new().bg(GREEN).fg(CRUST).bold()));
+            spans.push(Span::raw("  "));
+        }
         if detail == Detail::Full
             && app.auto_refresh_active()
             && matches!(app.tab, TabId::Push | TabId::Subscribers)

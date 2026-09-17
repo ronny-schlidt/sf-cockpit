@@ -31,6 +31,7 @@ every read/write goes through `sf` subprocesses. See [README.md](README.md) for 
   `sfdx-project.json`); see README.md § Configuration for the precedence table.
 - `src/cache.rs` — on-disk cache of last-loaded data (`~/Library/Caches/sf-cockpit` etc.), parsed data only,
   never tokens.
+- `src/update.rs` — daily GitHub release check (`gh`, then `curl`), self-update (`N` in the TUI, `--update`).
 - `src/demo.rs` — fictional sample data, used by `--demo` and by every test (no live org needed).
 - `src/print.rs` — `--print`: plain-text tab summaries for scripts, CI logs, and AI agents.
 - `src/theme.rs` — Catppuccin Mocha color constants.

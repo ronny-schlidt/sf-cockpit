@@ -11,7 +11,9 @@
 - **chrono** for timestamps (`DateTime<Local>`, `DateTime<FixedOffset>` for Salesforce's API timestamps).
 - **anyhow** for error handling throughout.
 - No async runtime — background work uses plain `std::thread` + `std::sync::mpsc` (see below).
-- No database, no network client: all Salesforce access goes through the external `sf` CLI as a subprocess.
+- No database, no network client: all Salesforce access goes through the external `sf` CLI as a subprocess;
+  the update check shells out to `gh` or `curl` the same way (`src/update.rs`).
+- **sha2** to verify downloaded release archives against their `.sha256` file.
 
 ## Data flow: `sf` subprocess → UI
 
@@ -43,11 +45,12 @@ of drawing a frame.
 
 ```
 main.rs           CLI flags, config load, terminal init, the event loop (run())
+update.rs         latest-release check (cached 24 h), download + checksum + in-place binary swap, --update
 app/
   mod.rs          App struct: Loadable<T> per tab, Toast, Action enum, on_key/on_mouse dispatch, poll()
   tabs.rs         TabId, Target (focusable regions), the TABS registry (key, label, panes)
   input.rs        key/mouse → Action mapping per tab
-  modal.rs        Modal enum: Confirm, Input, Picker, Wizard (push-upgrade scheduling), TaskLog, Message
+  modal.rs        Modal enum: Confirm, Input, Picker, Wizard (push-upgrade scheduling), TaskLog, Update, Message
   selection.rs    mouse drag-to-select for copying text
   settings.rs     SettingKey enum + editing logic for the Settings tab
 ui/
