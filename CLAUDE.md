@@ -12,9 +12,10 @@ every read/write goes through `sf` subprocesses. See [README.md](README.md) for 
 - **Language/stack:** Rust 2024 edition (rust-version 1.88), [Ratatui](https://ratatui.rs) for the TUI,
   `clap` for CLI parsing, `serde`/`toml`/`serde_json` for config and `sf --json` parsing, `chrono` for
   timestamps, `anyhow` for errors.
-- **Distribution:** private GitHub repo `ronny-schlidt/sf-cockpit`. Pushing a `v*` tag builds release
+- **Distribution:** public GitHub repo `ronny-schlidt/sf-cockpit` (MIT). Pushing a `v*` tag builds release
   binaries for macOS/Linux/Windows (`.github/workflows/release.yml`); users install them with `install.sh`
-  through `gh` (see README.md § Install).
+  via `curl` from raw.githubusercontent.com, `gh` is optional (see README.md § Install). Everything
+  committed is public: only fictional org ids/usernames in tests and demo data.
 
 ## Entry points and directories
 
@@ -54,8 +55,7 @@ cargo clippy --all-targets -- -D warnings    # what CI runs; treat every warning
 ```
 
 CI (`.github/workflows/ci.yml`) runs `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and
-`cargo test` on Linux only for every push/PR (macOS and Windows runners cost extra minutes in a private
-repo; the release workflow still compiles every platform). Run the same three commands locally before
+`cargo test` on Linux only for every push/PR (the release workflow still compiles every platform). Run the same three commands locally before
 considering a change done — no test org or Salesforce CLI login is needed for any of them.
 
 ## Conventions and architectural constraints

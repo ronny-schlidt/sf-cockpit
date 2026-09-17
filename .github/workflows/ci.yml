@@ -7,8 +7,7 @@ on:
 
 jobs:
   check:
-    # Linux only: macOS and Windows runners cost 10x and 2x minutes in private repositories.
-    # The release workflow still builds and links every platform.
+    # Linux only to keep CI fast. The release workflow still builds and links every platform.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
