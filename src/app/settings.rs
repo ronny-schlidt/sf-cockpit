@@ -8,6 +8,7 @@ use crate::demo;
 use crate::sf::Msg;
 use crate::sf::orgs::OrgKind;
 use crate::sf::push::{self, PackageIds};
+use crate::update;
 use ratatui::widgets::TableState;
 use std::collections::HashMap;
 
@@ -23,9 +24,10 @@ pub enum SettingKey {
     ProjectDir,
     SavePath,
     Cache,
+    Version,
 }
 
-pub const ROWS: [SettingKey; 7] = [
+pub const ROWS: [SettingKey; 8] = [
     SettingKey::DevHub,
     SettingKey::Package,
     SettingKey::ScratchOrg,
@@ -33,6 +35,7 @@ pub const ROWS: [SettingKey; 7] = [
     SettingKey::ProjectDir,
     SettingKey::SavePath,
     SettingKey::Cache,
+    SettingKey::Version,
 ];
 
 impl SettingKey {
@@ -45,6 +48,7 @@ impl SettingKey {
             SettingKey::ProjectDir => "Project directory",
             SettingKey::SavePath => "Changes are saved to",
             SettingKey::Cache => "Cache",
+            SettingKey::Version => "sf-cockpit version",
         }
     }
 
@@ -323,6 +327,10 @@ impl App {
                 }
                 None => "off in demo mode".into(),
             },
+            SettingKey::Version => match &self.update {
+                Some(release) => format!("{} · {} available", update::current_version(), release.version),
+                None => update::current_version().into(),
+            },
         }
     }
 
@@ -335,6 +343,8 @@ impl App {
                 None => String::new(),
             },
             SettingKey::Cache => "C clears it".into(),
+            SettingKey::Version if self.update.is_some() => "N or Enter updates".into(),
+            SettingKey::Version => "N shows what's new".into(),
             _ => key
                 .file_key()
                 .map(|file_key| self.cfg.origin(file_key).label())
@@ -360,6 +370,7 @@ impl App {
                 }))
             }
             SettingKey::Cache => self.clear_cache(),
+            SettingKey::Version => self.show_update(),
             SettingKey::ProjectDir | SettingKey::SavePath => self.notify(
                 "This follows from where sf-cockpit is started. Start it inside the Salesforce project.",
                 true,
@@ -558,9 +569,9 @@ impl App {
         note.important = important.then_some(true);
         let name = self.cfg.org_display_name(&key, &name);
         let what = if important {
-            format!("Marked {name} as important")
+            format!("Marked {name} as important — preselected for push upgrades")
         } else {
-            format!("Unmarked {name}")
+            format!("Unmarked {name} as important")
         };
         self.save_org_note(&key, note, what);
     }

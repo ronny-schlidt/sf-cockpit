@@ -74,6 +74,9 @@ pub fn draw(frame: &mut Frame, app: &mut App, area: Rect) {
             }
             Some(SettingKey::Limit) => "More requests make the Push tab load a little slower.",
             Some(SettingKey::Cache) => "Enter or C clears the cache.",
+            Some(SettingKey::Version) => {
+                "sf-cockpit looks for a new release once a day and shows it in the top bar. Enter or N opens it."
+            }
             _ => "",
         }),
     ])];
