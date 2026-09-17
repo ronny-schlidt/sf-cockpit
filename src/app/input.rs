@@ -21,6 +21,7 @@ enum Outcome {
     Cancel(TaskId),
     Submit(InputPurpose, String),
     Pick(PickPurpose, PickItem),
+    InstallUpdate,
 }
 
 impl App {
@@ -71,6 +72,7 @@ impl App {
             KeyCode::Esc => self.quit = true,
             KeyCode::Char('r') => self.run(Action::Reload),
             KeyCode::Char('L') => self.run(Action::ShowLog),
+            KeyCode::Char('N') => self.run(Action::ShowUpdate),
             KeyCode::Char('x') if self.running_task().is_some() => self.run(Action::CancelTask),
             KeyCode::Char('/') => self.run(Action::Filter),
             KeyCode::Char(c) if tab_for_key(c).is_some() => {
@@ -188,6 +190,11 @@ impl App {
 
     fn modal_key(&mut self, code: KeyCode) {
         let outcome = match self.modal.as_mut() {
+            Some(Modal::Update { installed, .. }) => match code {
+                KeyCode::Enter | KeyCode::Char('y') if !*installed => Outcome::InstallUpdate,
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('n') | KeyCode::Char('q') => Outcome::Close,
+                _ => Outcome::Nothing,
+            },
             Some(Modal::Message { .. }) => match code {
                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => Outcome::Close,
                 _ => Outcome::Nothing,
@@ -366,6 +373,10 @@ impl App {
             Outcome::Pick(purpose, item) => {
                 self.modal = None;
                 self.picked(purpose, item);
+            }
+            Outcome::InstallUpdate => {
+                self.modal = None;
+                self.install_update();
             }
         }
     }

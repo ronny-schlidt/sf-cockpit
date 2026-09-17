@@ -396,3 +396,81 @@ fn org_notes_are_parsed_merged_and_saved() {
         "an empty note removes the table: {text}"
     );
 }
+
+#[test]
+fn update_versions_and_targets() {
+    use crate::update::{archive_name, is_newer, parse_version, target_for};
+    assert_eq!(parse_version("v0.10.2"), Some((0, 10, 2)));
+    assert_eq!(parse_version("1.2"), Some((1, 2, 0)));
+    assert_eq!(parse_version("1.2.3-beta.1"), Some((1, 2, 3)));
+    assert_eq!(parse_version("latest"), None);
+    assert!(is_newer("v0.10.0", "0.9.1"));
+    assert!(!is_newer("0.2.0", "0.2.0"));
+    assert!(!is_newer("0.1.9", "0.2.0"));
+    assert!(!is_newer("nightly", "0.2.0"));
+    assert_eq!(target_for("macos", "aarch64"), Some("aarch64-apple-darwin"));
+    assert_eq!(target_for("freebsd", "x86_64"), None);
+    assert_eq!(
+        archive_name("x86_64-unknown-linux-gnu"),
+        "sf-cockpit-x86_64-unknown-linux-gnu.tar.gz"
+    );
+    assert_eq!(
+        archive_name("x86_64-pc-windows-msvc"),
+        "sf-cockpit-x86_64-pc-windows-msvc.zip"
+    );
+}
+
+#[test]
+fn update_commands() {
+    use crate::update::{Via, build_download, build_latest_release, parse_release};
+    assert_eq!(
+        build_latest_release(Via::Gh, "me/tool"),
+        strings(&["gh", "api", "repos/me/tool/releases/latest"])
+    );
+    assert_eq!(
+        build_latest_release(Via::Curl, "me/tool").last().unwrap(),
+        "https://api.github.com/repos/me/tool/releases/latest"
+    );
+    let dir = Path::new("/tmp/x");
+    assert_eq!(
+        build_download(Via::Gh, "me/tool", "v1.0.0", "a.tar.gz", dir),
+        vec![strings(&[
+            "gh",
+            "release",
+            "download",
+            "v1.0.0",
+            "--repo",
+            "me/tool",
+            "--pattern",
+            "a.tar.gz",
+            "--pattern",
+            "a.tar.gz.sha256",
+            "--dir",
+            "/tmp/x",
+            "--clobber",
+        ])]
+    );
+    let curl = build_download(Via::Curl, "me/tool", "v1.0.0", "a.tar.gz", dir);
+    assert_eq!(curl.len(), 2);
+    assert_eq!(
+        curl[1],
+        strings(&[
+            "curl",
+            "-fsSL",
+            "-o",
+            "/tmp/x/a.tar.gz.sha256",
+            "https://github.com/me/tool/releases/download/v1.0.0/a.tar.gz.sha256",
+        ])
+    );
+
+    let release = parse_release(&json!({
+        "tag_name": "v1.4.0",
+        "body": "## What's Changed\r\n* Faster pushes",
+        "html_url": "https://github.com/me/tool/releases/tag/v1.4.0",
+    }))
+    .unwrap();
+    assert_eq!(release.version, "1.4.0");
+    assert_eq!(release.tag, "v1.4.0");
+    assert_eq!(release.notes, "## What's Changed\n* Faster pushes");
+    assert!(parse_release(&json!({ "message": "Not Found" })).is_none());
+}

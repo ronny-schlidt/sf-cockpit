@@ -26,6 +26,10 @@ Cross-cutting, not tied to one tab:
   basis for the whole UI test suite (`src/tests/ui.rs`).
 - **`--print --tab <tab>`** — plain-text summary of one tab instead of the interactive UI, meant for
   scripts, CI logs, and AI agents (`src/print.rs`).
+- **Update check and self-update** — once a day in the background, `src/update.rs` asks GitHub for the
+  latest release (`gh api`, falling back to `curl` for a public repository), shows a badge in the top bar,
+  and `N` opens the notes with an Update button that downloads, checksums and swaps the running binary;
+  also `--check-update` / `--update` on the command line. Off with `SF_COCKPIT_NO_UPDATE_CHECK=1`.
 - **Layered config with origin tracking** — see [architecture.md § Configuration precedence](architecture.md#configuration-precedence).
 
 For the user-facing description (keybindings table, config file format, common push-upgrade error

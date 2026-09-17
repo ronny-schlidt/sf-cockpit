@@ -7,6 +7,7 @@ mod print;
 mod sf;
 mod theme;
 mod ui;
+mod update;
 
 #[cfg(test)]
 mod tests;
@@ -55,6 +56,14 @@ struct Cli {
     /// Show fictional sample data, no org needed.
     #[arg(long)]
     demo: bool,
+
+    /// Install the latest release in place of this binary.
+    #[arg(long, conflicts_with = "check_update")]
+    update: bool,
+
+    /// Print whether a newer release exists; exit code 10 if it does.
+    #[arg(long)]
+    check_update: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
@@ -82,6 +91,10 @@ impl From<TabArg> for TabId {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
+    update::clean_up_old_binary();
+    if cli.update || cli.check_update {
+        return update::run_cli(cli.update);
+    }
     let config = if cli.demo {
         config::Config::demo()
     } else {
@@ -113,6 +126,7 @@ fn main() -> Result<()> {
         app.cache = cache::Cache::default_location();
     }
     app.start();
+    app.check_for_update();
     app.open_first_tab(cli.tab.into());
     let result = run(&mut terminal, app);
 

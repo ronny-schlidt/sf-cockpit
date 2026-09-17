@@ -12,6 +12,7 @@ use crate::sf::push::{self, PackageIds, PushData, PushError, PushJob, PushReques
 use crate::sf::runner::{self, TaskHandle, TaskId, TaskKind, TaskSpec};
 use crate::sf::versions::{self, PackageVersion, install_url};
 use crate::sf::{self, Msg};
+use crate::update::{self, ReleaseInfo};
 use crate::{clipboard, demo};
 use chrono::{DateTime, Local};
 use modal::{
@@ -63,6 +64,7 @@ pub enum Action {
     ClearCache,
     ToggleImportant,
     RenameOrg,
+    ShowUpdate,
     ModalConfirm,
     ModalCancel,
     ModalBack,
@@ -212,6 +214,11 @@ pub struct App {
     pub toast: Option<Toast>,
     pub modal: Option<Modal>,
     pub tasks: Vec<TaskView>,
+    /// A newer sf-cockpit release, found in the background at start.
+    pub update: Option<ReleaseInfo>,
+    pub updating: bool,
+    /// Notes of the version this binary was just updated to, shown once.
+    pub whats_new: Option<ReleaseInfo>,
     handles: HashMap<TaskId, TaskHandle>,
     next_task: TaskId,
     pending_request: Option<String>,
@@ -265,6 +272,9 @@ impl App {
             toast: None,
             modal: None,
             tasks: Vec::new(),
+            update: None,
+            updating: false,
+            whats_new: None,
             handles: HashMap::new(),
             next_task: 1,
             pending_request: None,
@@ -489,6 +499,24 @@ impl App {
                         self.clamp_selection(Target::Deploys);
                     }
                 }
+                Msg::UpdateChecked(release) => self.update = release,
+                Msg::UpdateInstalled(result) => {
+                    self.updating = false;
+                    match result {
+                        Ok(version) => {
+                            self.update = None;
+                            self.modal = Some(Modal::Message {
+                                title: "sf-cockpit updated".into(),
+                                body: vec![
+                                    format!("Version {version} is installed."),
+                                    "Quit with q and start sf-cockpit again to use it.".into(),
+                                ],
+                                error: false,
+                            });
+                        }
+                        Err(error) => self.notify(format!("Update failed: {error}"), true),
+                    }
+                }
                 Msg::TaskLine { id, line, stderr } => {
                     // `sf org open` prints a URL with a session id, so its output is never kept.
                     if let Some(task) = self.tasks.iter_mut().find(|t| t.id == id)
@@ -574,6 +602,73 @@ impl App {
             TabId::Deploy if self.deploys.value.is_none() => self.reload_deploys(),
             _ => {}
         }
+    }
+
+    // ─── Updates ─────────────────────────────────────────────────────────────
+
+    /// Looks for a newer release in the background. Never in demo mode or tests, which have no cache.
+    pub fn check_for_update(&mut self) {
+        let Some(cache) = self.cache.clone() else {
+            return;
+        };
+        if self.demo || !update::check_enabled() {
+            return;
+        }
+        self.remember_version(&cache);
+        let tx = self.tx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(Msg::UpdateChecked(update::check(Some(&cache))));
+        });
+    }
+
+    /// After an update, offers the notes of the new version once.
+    fn remember_version(&mut self, cache: &crate::cache::Cache) {
+        const KEY: &str = "last-version";
+        let current = update::current_version();
+        let previous = cache.load::<String>(KEY).map(|(v, _)| v);
+        if previous.as_deref() != Some(current) {
+            let _ = cache.save(KEY, &current.to_string());
+        }
+        if previous.is_some_and(|p| update::is_newer(current, &p)) {
+            self.whats_new = update::cached_release(cache).filter(|r| r.version == current);
+            let hint = if self.whats_new.is_some() {
+                " · N shows what's new"
+            } else {
+                ""
+            };
+            self.notify(format!("sf-cockpit updated to {current}{hint}"), false);
+        }
+    }
+
+    fn show_update(&mut self) {
+        let (release, installed) = match (&self.update, &self.whats_new) {
+            (Some(release), _) => (release.clone(), false),
+            (None, Some(release)) => (release.clone(), true),
+            (None, None) => {
+                let text = format!("sf-cockpit {} is the latest version", update::current_version());
+                self.notify(text, false);
+                return;
+            }
+        };
+        self.modal = Some(Modal::Update { release, installed });
+    }
+
+    fn install_update(&mut self) {
+        let Some(release) = self.update.clone() else {
+            return;
+        };
+        if self.updating {
+            return;
+        }
+        self.updating = true;
+        self.notify(format!("Downloading sf-cockpit {}…", release.version), false);
+        let tx = self.tx.clone();
+        std::thread::spawn(move || {
+            let result = update::install(&release)
+                .map(|_| release.version)
+                .map_err(|e| format!("{e:#}"));
+            let _ = tx.send(Msg::UpdateInstalled(result));
+        });
     }
 
     // ─── Derived state ───────────────────────────────────────────────────────
@@ -946,6 +1041,7 @@ impl App {
             Action::PickDeployOrg => self.pick_deploy_org(),
             Action::EditSetting => self.edit_setting(),
             Action::ClearCache => self.clear_cache(),
+            Action::ShowUpdate => self.show_update(),
             Action::ToggleImportant => self.toggle_important(),
             Action::RenameOrg => self.rename_org(),
             Action::ModalConfirm | Action::ModalCancel | Action::ModalBack | Action::ModalRow(_) => {

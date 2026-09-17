@@ -40,6 +40,17 @@ inline), and add a `parsing.rs` case asserting its argv — this is the project'
 Salesforce CLI interaction without a live org, and keeping it consistent is more valuable than testing the
 same command a different way.
 
+## Releasing
+
+1. Bump `version` in `Cargo.toml` (run `cargo build` so `Cargo.lock` follows — the release builds with `--locked`).
+2. Commit and push to `main`, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
+3. `.github/workflows/release.yml` builds every platform and publishes the release with generated notes
+   (edit them on GitHub for nicer "what's new" text — the app shows the release body as-is).
+
+Running copies notice the release within 24 hours (`src/update.rs`, cache key `update`). To see the update
+flow locally, build with a lower `version` and run `SF_COCKPIT_REPO=owner/repo target/debug/sf-cockpit --check-update`,
+or delete `update.json` from the cache directory to force a fresh check at the next TUI start.
+
 ## Troubleshooting
 
 - **A change compiles but `cargo clippy --all-targets -- -D warnings` fails** — this is a real CI gate, not

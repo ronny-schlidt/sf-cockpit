@@ -659,3 +659,28 @@ fn starting_outside_a_project_says_so_in_the_setup_popup() {
     assert_eq!(complete.tab, TabId::Orgs, "no popup when nothing is missing");
     assert!(complete.modal.is_none());
 }
+
+#[test]
+fn update_badge_and_dialog() {
+    use crate::update::ReleaseInfo;
+    let mut app = app();
+    assert!(!render(&mut app).contains("available · N"));
+    key(&mut app, KeyCode::Char('N'));
+    assert!(app.modal.is_none(), "no dialog without a newer release");
+
+    app.update = Some(ReleaseInfo {
+        version: "9.9.9".into(),
+        tag: "v9.9.9".into(),
+        notes: "## What's Changed\n* Faster pushes".into(),
+        url: "https://github.com/ronny-schlidt/sf-cockpit/releases/tag/v9.9.9".into(),
+    });
+    assert!(render(&mut app).contains("↑ 9.9.9 available · N"));
+    key(&mut app, KeyCode::Char('N'));
+    let screen = render(&mut app);
+    assert!(screen.contains("Update available"));
+    assert!(screen.contains("sf-cockpit 9.9.9 is available"));
+    assert!(screen.contains("• Faster pushes"));
+    assert!(screen.contains("Update now"));
+    key(&mut app, KeyCode::Esc);
+    assert!(app.modal.is_none());
+}

@@ -3,6 +3,7 @@
 use super::settings::SettingKey;
 use crate::sf::push::{ScheduleSpec, VersionKey, build_schedule};
 use crate::sf::runner::TaskId;
+use crate::update::ReleaseInfo;
 use chrono::NaiveDateTime;
 
 pub enum Modal {
@@ -14,6 +15,11 @@ pub enum Modal {
         id: TaskId,
         /// Lines scrolled up from the end; 0 follows the output.
         scroll: usize,
+    },
+    /// A newer release to install, or with `installed` the notes of the version just updated to.
+    Update {
+        release: ReleaseInfo,
+        installed: bool,
     },
     Message {
         title: String,
