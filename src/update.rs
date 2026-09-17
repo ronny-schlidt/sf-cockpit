@@ -1,7 +1,7 @@
 //! Finds newer releases on GitHub and replaces the running binary with one.
 //!
-//! Works for a private and a public repository without code changes: `gh` first (needs a login that can
-//! read the repository), then plain `curl` against the public GitHub URLs. When neither works, there is
+//! `gh` first when it is installed and logged in (also covers private forks via `SF_COCKPIT_REPO`), then
+//! plain `curl` against the public GitHub URLs. When neither works, there is
 //! simply no update to show. Downloads are checked against the `.sha256` file the release workflow attaches.
 
 use crate::cache::Cache;

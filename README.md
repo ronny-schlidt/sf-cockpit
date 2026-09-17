@@ -13,16 +13,21 @@ Every tab opens instantly with the data of the last run and refreshes itself in 
 
 Every command that changes something shows the exact `sf` command and asks first. Push upgrades, promotions and installs outside your scratch org are marked as dangerous.
 
+**Who it is for:** ISV teams shipping a managed or unlocked package: when a push upgrade fails, Salesforce tells you to query the API for the details. sf-cockpit does those queries and shows the failed orgs with their errors next to each other. The Orgs and Deploy & Test tabs are also useful for any Salesforce developer or consultant working with many scratch orgs and sandboxes, and `--print` gives CI jobs and AI agents the same overview as plain text.
+
+Try it without an org: install it, then run `sf-cockpit --demo`.
+
 ## Install
 
-The repository is private, so installing goes through the [GitHub CLI](https://cli.github.com) with an account that can read it:
+macOS and Linux:
 
 ```bash
-brew install gh && gh auth login          # once
-gh api -H "Accept: application/vnd.github.raw" repos/ronny-schlidt/sf-cockpit/contents/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/ronny-schlidt/sf-cockpit/main/install.sh | sh
 ```
 
-The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN_DIR`). It downloads the prebuilt binary of the latest release and checks its checksum. Without a release for your platform it clones the repository and builds it with cargo, which needs [Rust](https://rustup.rs). From a clone, `./install.sh` builds and installs the local code.
+The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN_DIR`). It downloads the prebuilt binary of the latest release and checks its checksum. Without a release for your platform it clones the repository and builds it with cargo, which needs [Rust](https://rustup.rs). From a clone, `./install.sh` builds and installs the local code. No GitHub account is needed; the [GitHub CLI](https://cli.github.com) is used when it is installed.
+
+Windows: download `sf-cockpit-x86_64-pc-windows-msvc.zip` from the [latest release](https://github.com/ronny-schlidt/sf-cockpit/releases/latest), unpack it and put `sf-cockpit.exe` on your `PATH`. Or build it with `cargo install --git https://github.com/ronny-schlidt/sf-cockpit`.
 
 ## Updates
 
@@ -35,7 +40,7 @@ sf-cockpit --check-update     # prints the newer version and its notes; exit cod
 sf-cockpit --update           # installs the latest release in place
 ```
 
-Updates use `gh` when it is installed and logged in, otherwise plain `curl` (enough once the repository is public). Turn the background check off with `SF_COCKPIT_NO_UPDATE_CHECK=1`. Nothing is sent to GitHub except the request for the latest release.
+Updates use `gh` when it is installed and logged in, otherwise plain `curl`. Turn the background check off with `SF_COCKPIT_NO_UPDATE_CHECK=1`. Nothing is sent to GitHub except the request for the latest release.
 
 You also need the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`), logged in to the Dev Hub that owns your package:
 
@@ -172,6 +177,12 @@ To release: bump `version` in `Cargo.toml`, commit, then push a tag like `v0.3.0
 
 Built with [Ratatui](https://ratatui.rs). Colors: [Catppuccin Mocha](https://catppuccin.com).
 
+## Feedback and contributing
+
+Bug reports, ideas and pull requests are welcome: [open an issue](https://github.com/ronny-schlidt/sf-cockpit/issues). If a push upgrade fails with an error that is not in the table above, please share the error code and message (without org ids) so it can be explained there.
+
 ## License
 
 [MIT](LICENSE). Not affiliated with or endorsed by Salesforce, Inc. Salesforce is a trademark of Salesforce, Inc.
+
+Made by [Ronny Schlidt](https://github.com/ronny-schlidt), who uses it to ship [bowbridge Anti-Virus for Salesforce](https://www.bowbridge.net/en/salesforce-antivirus/) on AppExchange.

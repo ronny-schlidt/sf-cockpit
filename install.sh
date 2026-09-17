@@ -1,13 +1,12 @@
 #!/bin/sh
 # Installs sf-cockpit into ~/.local/bin (override with SF_COCKPIT_BIN_DIR).
 #
-# The repository is private, so downloads go through the GitHub CLI (gh auth login once):
-#   gh api -H "Accept: application/vnd.github.raw" repos/ronny-schlidt/sf-cockpit/contents/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/ronny-schlidt/sf-cockpit/main/install.sh | sh
 # From a clone:
 #   ./install.sh
 #
 # It installs the prebuilt binary of the latest release. Without a release, or on an unsupported platform,
-# it builds from source with cargo.
+# it builds from source with cargo. Downloads use the GitHub CLI (gh) when it is installed, otherwise curl.
 set -eu
 
 REPO="${SF_COCKPIT_REPO:-ronny-schlidt/sf-cockpit}"
@@ -48,9 +47,9 @@ download_release() {
   target=$(target)
   [ -n "$target" ] || return 1
   archive="$NAME-$target.tar.gz"
-  if has gh; then
-    gh release download --repo "$REPO" --pattern "$archive" --pattern "$archive.sha256" --dir "$tmp" 2>/dev/null || return 1
-  else
+  # gh also works for forks kept private; a logged-out gh falls through to curl.
+  if ! { has gh && gh release download --repo "$REPO" --pattern "$archive" --pattern "$archive.sha256" \
+    --dir "$tmp" --clobber 2>/dev/null; }; then
     url="https://github.com/$REPO/releases/latest/download/$archive"
     curl -fsSL "$url" -o "$tmp/$archive" 2>/dev/null || return 1
     curl -fsSL "$url.sha256" -o "$tmp/$archive.sha256" 2>/dev/null || return 1
@@ -73,11 +72,11 @@ if [ -n "$script_dir" ] && [ -f "$script_dir/Cargo.toml" ]; then
 elif download_release; then
   say "Downloaded the latest release"
 else
-  if has gh; then
-    gh repo clone "$REPO" "$tmp/src" -- --depth 1 --quiet 2>/dev/null \
-      || fail "cannot access $REPO. Run 'gh auth login' with an account that can read the repository."
+  if has git; then
+    git clone --depth 1 --quiet "https://github.com/$REPO.git" "$tmp/src" 2>/dev/null \
+      || fail "cannot download $REPO from GitHub. Check your internet connection and run this again."
   else
-    fail "the GitHub CLI is needed for the private repository. Install it (brew install gh), run 'gh auth login', then run this again."
+    fail "no prebuilt binary for $(uname -s)/$(uname -m), and git is not installed to build from source."
   fi
   build_from "$tmp/src"
 fi
