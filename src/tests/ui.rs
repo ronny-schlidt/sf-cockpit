@@ -667,6 +667,9 @@ fn update_badge_and_dialog() {
     assert!(!render(&mut app).contains("available · N"));
     key(&mut app, KeyCode::Char('N'));
     assert!(app.modal.is_none(), "no dialog without a newer release");
+    key(&mut app, KeyCode::Char('6'));
+    assert!(render(&mut app).contains("sf-cockpit version"));
+    key(&mut app, KeyCode::Char('1'));
 
     app.update = Some(ReleaseInfo {
         version: "9.9.9".into(),
@@ -675,6 +678,10 @@ fn update_badge_and_dialog() {
         url: "https://github.com/ronny-schlidt/sf-cockpit/releases/tag/v9.9.9".into(),
     });
     assert!(render(&mut app).contains("↑ 9.9.9 available · N"));
+    key(&mut app, KeyCode::Char('6'));
+    let current = env!("CARGO_PKG_VERSION");
+    assert!(render(&mut app).contains(&format!("{current} · 9.9.9 available")));
+    key(&mut app, KeyCode::Char('1'));
     key(&mut app, KeyCode::Char('N'));
     let screen = render(&mut app);
     assert!(screen.contains("Update available"));

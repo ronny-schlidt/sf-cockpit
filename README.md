@@ -26,7 +26,7 @@ The installer puts `sf-cockpit` into `~/.local/bin` (change with `SF_COCKPIT_BIN
 
 ## Updates
 
-sf-cockpit checks GitHub for a newer release once a day in the background. When there is one, the top bar shows `↑ 0.4.0 available · N`. Press `N` to read what's new and `Enter` to update: the new binary is downloaded, its checksum checked, and it replaces the running one. Start sf-cockpit again to use it; the first start after an update offers the release notes once more.
+The installed version is shown on the Settings tab (and by `sf-cockpit --version`). sf-cockpit checks GitHub for a newer release once a day in the background. When there is one, the top bar shows `↑ 0.4.0 available · N`. Press `N` to read what's new and `Enter` to update: the new binary is downloaded, its checksum checked, and it replaces the running one. Start sf-cockpit again to use it; the first start after an update offers the release notes once more.
 
 From the command line:
 
