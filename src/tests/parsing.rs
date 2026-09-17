@@ -1,4 +1,4 @@
-use crate::config::{FileConfig, load_from};
+use crate::config::{FileConfig, OrgNote, load_from, save_org_note};
 use crate::sf::deploy::{build_deploy, build_tests, parse_deploys, parse_test_result};
 use crate::sf::orgs::{Health, OrgKind, build_delete_scratch, parse_installed, parse_org_list};
 use crate::sf::push::{build_abort, build_schedule};
@@ -329,4 +329,70 @@ fn config_precedence_and_discovery() {
         "a missing Dev Hub is no error, the app asks for it"
     );
     let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn org_notes_are_parsed_merged_and_saved() {
+    let error = FileConfig::parse("[orgs.00D000000000A01]\nimportent = true\n")
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("importent"), "{error}");
+
+    let dir = crate::tests::temp_dir("org-notes-config");
+    let cwd = dir.join("project");
+    let xdg = dir.join("xdg");
+    std::fs::create_dir_all(&cwd).unwrap();
+    std::fs::create_dir_all(xdg.join("sf-cockpit")).unwrap();
+    std::fs::write(
+        xdg.join("sf-cockpit/config.toml"),
+        "[orgs.00D000000000A01AAA]\nname = \"Global name\"\nimportant = true\n",
+    )
+    .unwrap();
+    let project = cwd.join("sf-cockpit.toml");
+    std::fs::write(
+        &project,
+        "# comment\ndev_hub = \"hub\"\n\n[orgs.00D000000000A01AAA]\nname = \"ACME prod\"\n",
+    )
+    .unwrap();
+    let config = load_from(FileConfig::default(), &cwd, None, Some(&xdg)).unwrap();
+    assert_eq!(
+        config.org_display_name("00D000000000A01", "x"),
+        "ACME prod",
+        "project wins per field"
+    );
+    assert!(
+        config.is_important("00D000000000A01AAA"),
+        "global marking stays, 18-char ids work"
+    );
+
+    let note = OrgNote {
+        name: Some("ACME".into()),
+        important: Some(true),
+    };
+    save_org_note(&project, "00D000000000A01", &note).unwrap();
+    save_org_note(
+        &project,
+        "00D000000000B02",
+        &OrgNote {
+            name: None,
+            important: Some(true),
+        },
+    )
+    .unwrap();
+    let text = std::fs::read_to_string(&project).unwrap();
+    assert!(text.starts_with("# comment\n"), "{text}");
+    assert!(
+        !text.contains("[orgs.00D000000000A01]"),
+        "the 18-char table is reused: {text}"
+    );
+    let orgs = FileConfig::parse(&text).unwrap().orgs.unwrap();
+    assert_eq!(orgs["00D000000000A01AAA"], note);
+    assert_eq!(orgs["00D000000000B02"].important, Some(true));
+
+    save_org_note(&project, "00D000000000B02", &OrgNote::default()).unwrap();
+    let text = std::fs::read_to_string(&project).unwrap();
+    assert!(
+        !text.contains("00D000000000B02"),
+        "an empty note removes the table: {text}"
+    );
 }

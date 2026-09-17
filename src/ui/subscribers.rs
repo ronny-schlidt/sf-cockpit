@@ -6,7 +6,7 @@ use crate::theme::*;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
-use ratatui::text::Span;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Row};
 
 pub fn draw(frame: &mut Frame, app: &mut App, area: Rect) {
@@ -28,7 +28,7 @@ fn draw_tab(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
         frame,
         app,
         filter_area,
-        "Click here or press / to filter by org, alias, org ID, instance or version",
+        "Click here or press / to filter by org, name, alias, org ID, instance or version (★ = marked only)",
     );
 
     let subscribers = app.subscribers_in(data);
@@ -40,6 +40,10 @@ fn draw_tab(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
     let behind = subscribers
         .iter()
         .filter(|s| !data.is_latest(&s.version_id))
+        .count();
+    let marked = subscribers
+        .iter()
+        .filter(|s| app.cfg.is_important(&s.org_key))
         .count();
     let hover = hover_row(app.hover, table_area, &app.subscribers);
 
@@ -53,9 +57,24 @@ fn draw_tab(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
                 .alias(&s.org_key)
                 .map(|o| o.alias.clone())
                 .unwrap_or_default();
+            let own_name = app.cfg.org_display_name(&s.org_key, "");
+            let name = if own_name.is_empty() {
+                Line::from(value(s.name.clone()))
+            } else {
+                Line::from(vec![
+                    Span::styled(own_name, Style::new().fg(TEXT).bold()),
+                    dim(format!("  {}", s.name)),
+                ])
+            };
+            let star = if app.cfg.is_important(&s.org_key) {
+                "★"
+            } else {
+                ""
+            };
             Row::new([
                 Cell::from(colored("●", color)),
-                Cell::from(value(s.name.clone())),
+                Cell::from(colored(star, YELLOW)),
+                Cell::from(name),
                 Cell::from(colored(alias, LAVENDER)),
                 Cell::from(dim(s.org_type.clone())),
                 Cell::from(dim(s.org_status.clone())),
@@ -78,12 +97,15 @@ fn draw_tab(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
         Target::Subscribers,
         table_area,
         TableSpec {
-            title: format!("Subscribers · {count} orgs · {behind} behind latest released {latest}"),
+            title: format!(
+                "Subscribers · {count} orgs · {marked} marked · {behind} behind latest released {latest}"
+            ),
             focused: !app.editing_filter,
             header: &[
-                "", "Org", "Alias", "Type", "Status", "Instance", "Org ID", "Version", "",
+                "", "★", "Org", "Alias", "Type", "Status", "Instance", "Org ID", "Version", "",
             ],
             widths: &[
+                Constraint::Length(1),
                 Constraint::Length(1),
                 Constraint::Fill(2),
                 Constraint::Fill(1),

@@ -1,10 +1,11 @@
 //! Configuration, highest precedence first: CLI flags, `sf-cockpit.toml` in the project (found by walking up
 //! from the current directory), `~/.config/sf-cockpit/config.toml`, the sf CLI config, `sfdx-project.json`.
 
+use crate::sf::query::org_key;
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 pub const PROJECT_FILE: &str = "sf-cockpit.toml";
@@ -28,6 +29,30 @@ pub struct FileConfig {
     pub skip_ancestor_check: Option<bool>,
     /// Number of recent push requests to load.
     pub limit: Option<usize>,
+    /// Own names and markings for subscriber orgs, by 15- or 18-character org id.
+    pub orgs: Option<BTreeMap<String, OrgNote>>,
+}
+
+/// What the user noted about one subscriber org: `[orgs.<org id>]`.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct OrgNote {
+    pub name: Option<String>,
+    /// Important customer org: listed first and preselected for push upgrades.
+    pub important: Option<bool>,
+}
+
+impl OrgNote {
+    fn merge(self, over: Self) -> Self {
+        Self {
+            name: over.name.or(self.name),
+            important: over.important.or(self.important),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.name.is_none() && self.important.is_none()
+    }
 }
 
 impl FileConfig {
@@ -57,6 +82,16 @@ impl FileConfig {
             definition_file: over.definition_file.or(self.definition_file),
             skip_ancestor_check: over.skip_ancestor_check.or(self.skip_ancestor_check),
             limit: over.limit.or(self.limit),
+            orgs: match (self.orgs, over.orgs) {
+                (Some(mut base), Some(over)) => {
+                    for (id, note) in over {
+                        let merged = base.remove(&id).unwrap_or_default().merge(note);
+                        base.insert(id, merged);
+                    }
+                    Some(base)
+                }
+                (base, over) => over.or(base),
+            },
         }
     }
 
@@ -70,12 +105,13 @@ impl FileConfig {
             "definition_file" => self.definition_file.is_some(),
             "skip_ancestor_check" => self.skip_ancestor_check.is_some(),
             "limit" => self.limit.is_some(),
+            "orgs" => self.orgs.is_some(),
             _ => false,
         }
     }
 }
 
-const KEYS: [&str; 8] = [
+const KEYS: [&str; 9] = [
     "dev_hub",
     "package",
     "scratch_org",
@@ -84,6 +120,7 @@ const KEYS: [&str; 8] = [
     "definition_file",
     "skip_ancestor_check",
     "limit",
+    "orgs",
 ];
 
 /// Where a setting came from.
@@ -120,6 +157,8 @@ pub struct Config {
     pub definition_file: String,
     pub skip_ancestor_check: bool,
     pub limit: usize,
+    /// Org notes by 15-character org key.
+    pub orgs: HashMap<String, OrgNote>,
     pub origins: HashMap<&'static str, Origin>,
     /// The file the Settings tab writes: the project file if there is one, else the global file.
     pub save_path: Option<PathBuf>,
@@ -138,6 +177,7 @@ impl Config {
             definition_file: "config/project-scratch-def.json".into(),
             skip_ancestor_check: false,
             limit: 30,
+            orgs: demo_notes(),
             origins: HashMap::new(),
             save_path: None,
             cli: FileConfig::default(),
@@ -147,6 +187,22 @@ impl Config {
     /// No Dev Hub yet: the app opens the Settings tab, `--print` stops with a hint.
     pub fn needs_setup(&self) -> bool {
         self.dev_hub.is_empty()
+    }
+
+    pub fn org_note(&self, key: &str) -> Option<&OrgNote> {
+        self.orgs.get(&org_key(key))
+    }
+
+    /// The user's name for the org, else the name from Salesforce.
+    pub fn org_display_name(&self, key: &str, fallback: &str) -> String {
+        self.org_note(key)
+            .and_then(|n| n.name.clone())
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or_else(|| fallback.to_string())
+    }
+
+    pub fn is_important(&self, key: &str) -> bool {
+        self.org_note(key).and_then(|n| n.important).unwrap_or(false)
     }
 
     pub fn origin(&self, key: &str) -> Origin {
@@ -243,6 +299,7 @@ pub fn load_from(cli: FileConfig, cwd: &Path, home: Option<&Path>, xdg: Option<&
             .unwrap_or_else(|| "config/project-scratch-def.json".into()),
         skip_ancestor_check: merged.skip_ancestor_check.unwrap_or(false),
         limit: merged.limit.unwrap_or(30),
+        orgs: normalize_notes(merged.orgs.unwrap_or_default()),
         origins,
         save_path,
         cli,
@@ -263,6 +320,78 @@ pub fn save_value(path: &Path, key: &str, value: impl Into<toml_edit::Value>) ->
         std::fs::create_dir_all(dir).with_context(|| format!("cannot create {}", dir.display()))?;
     }
     std::fs::write(path, updated).with_context(|| format!("cannot write {}", path.display()))
+}
+
+/// Writes `[orgs.<org id>]` into a TOML config file and keeps everything else; an empty note removes the
+/// table. An existing table under the 18-character id is updated in place.
+pub fn save_org_note(path: &Path, key: &str, note: &OrgNote) -> Result<()> {
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let mut doc: toml_edit::DocumentMut = text
+        .parse()
+        .with_context(|| format!("invalid {}", path.display()))?;
+    if doc.get("orgs").is_none() {
+        let mut orgs = toml_edit::Table::new();
+        orgs.set_implicit(true);
+        doc["orgs"] = toml_edit::Item::Table(orgs);
+    }
+    let orgs = doc["orgs"]
+        .as_table_like_mut()
+        .ok_or_else(|| anyhow!("orgs in {} is not a table", path.display()))?;
+    let short = org_key(key);
+    let id = orgs
+        .iter()
+        .map(|(id, _)| id.to_string())
+        .find(|id| org_key(id) == short)
+        .unwrap_or(short);
+    if note.is_empty() {
+        orgs.remove(&id);
+    } else {
+        if orgs.get(&id).and_then(toml_edit::Item::as_table_like).is_none() {
+            orgs.insert(&id, toml_edit::Item::Table(toml_edit::Table::new()));
+        }
+        let table = orgs
+            .get_mut(&id)
+            .and_then(toml_edit::Item::as_table_like_mut)
+            .expect("inserted");
+        match &note.name {
+            Some(name) => table.insert("name", toml_edit::value(name.as_str())),
+            None => table.remove("name"),
+        };
+        match note.important {
+            Some(important) => table.insert("important", toml_edit::value(important)),
+            None => table.remove("important"),
+        };
+    }
+    let updated = doc.to_string();
+    FileConfig::parse(&updated)
+        .with_context(|| format!("refusing to write an invalid {}", path.display()))?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).with_context(|| format!("cannot create {}", dir.display()))?;
+    }
+    std::fs::write(path, updated).with_context(|| format!("cannot write {}", path.display()))
+}
+
+/// Keys as 15-character org keys, the form `PackageSubscriber` and `PackagePushJob` use.
+fn normalize_notes(notes: BTreeMap<String, OrgNote>) -> HashMap<String, OrgNote> {
+    let mut normalized: HashMap<String, OrgNote> = HashMap::new();
+    for (id, note) in notes {
+        let key = org_key(id.trim());
+        let merged = normalized.remove(&key).unwrap_or_default().merge(note);
+        normalized.insert(key, merged);
+    }
+    normalized
+}
+
+fn demo_notes() -> HashMap<String, OrgNote> {
+    let note = |name: Option<&str>, important| OrgNote {
+        name: name.map(str::to_string),
+        important,
+    };
+    HashMap::from([
+        (crate::demo::GLOBEX.into(), note(None, Some(true))),
+        (crate::demo::STARK.into(), note(None, Some(true))),
+        (crate::demo::UMBRELLA.into(), note(Some("Umbrella APAC"), None)),
+    ])
 }
 
 /// `~/…` instead of the home directory, for display.

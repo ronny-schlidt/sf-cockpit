@@ -283,7 +283,11 @@ fn draw_wizard(frame: &mut Frame, app: &mut App, area: Rect, wizard: &Wizard) {
                     format!("{checked} of {} orgs", wizard.orgs.len()),
                     Style::new().fg(if checked > 0 { TEXT } else { RED }).bold(),
                 ),
-                label(". Orgs behind this version are preselected."),
+                label(if wizard.has_important() {
+                    ". Marked orgs (★) behind this version are preselected."
+                } else {
+                    ". Orgs behind this version are preselected."
+                }),
             ];
             if checked == 0 {
                 intro_spans.push(colored("  Select at least one org.", RED));
@@ -298,6 +302,7 @@ fn draw_wizard(frame: &mut Frame, app: &mut App, area: Rect, wizard: &Wizard) {
                             if org.checked { "[x] " } else { "[ ] " },
                             Style::new().fg(if org.checked { GREEN } else { OVERLAY0 }).bold(),
                         ),
+                        colored(if org.important { "★ " } else { "  " }, YELLOW),
                         Span::styled(format!("{:<30}", truncate(&org.name, 29)), Style::new().fg(TEXT)),
                         dim(format!("{:<12}", org.org_type)),
                         colored(format!("{:<10}", org.installed), LAVENDER),
@@ -318,6 +323,7 @@ fn draw_wizard(frame: &mut Frame, app: &mut App, area: Rect, wizard: &Wizard) {
                     ("Enter", "Next", Some(Action::ModalConfirm)),
                     ("Space", "Toggle", None),
                     ("a", "All behind", None),
+                    ("m", "Marked", None),
                     ("n", "None", None),
                     ("←", "Back", Some(Action::ModalBack)),
                     ("Esc", "Cancel", Some(Action::ModalCancel)),
@@ -516,10 +522,13 @@ fn draw_message(frame: &mut Frame, app: &mut App, area: Rect, title: &str, body:
     let color = if error { RED } else { MAUVE };
     let text = Text::from(
         body.iter()
-            .map(|line| Line::styled(line.clone(), Style::new().fg(TEXT)))
+            .map(|line| match line.strip_prefix("# ") {
+                Some(heading) => Line::styled(heading.to_string(), Style::new().fg(PEACH).bold()),
+                None => Line::styled(line.clone(), Style::new().fg(TEXT)),
+            })
             .collect::<Vec<_>>(),
     );
-    let width = width_for(area, 90);
+    let width = width_for(area, 104);
     let height = wrapped_height(&text, width.saturating_sub(4)) + 5;
     let (content, row) = dialog(frame, area, width, height, title, color);
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), content);

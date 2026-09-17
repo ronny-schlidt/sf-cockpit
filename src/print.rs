@@ -28,9 +28,9 @@ pub fn run(config: &Config, tab: TabArg, org: Option<&str>, demo: bool) -> Resul
                 push::load(hub, config.limit, config.package.as_deref())?
             };
             if tab == TabArg::Push {
-                print_push(hub, &data);
+                print_push(config, &data);
             } else {
-                print_subscribers(&data);
+                print_subscribers(config, &data);
             }
         }
         TabArg::Orgs => {
@@ -68,7 +68,8 @@ pub fn run(config: &Config, tab: TabArg, org: Option<&str>, demo: bool) -> Resul
     Ok(())
 }
 
-fn print_push(org: &str, data: &PushData) {
+fn print_push(config: &Config, data: &PushData) {
+    let org = &config.dev_hub;
     println!(
         "{} push requests, {} subscribers on {org}\n",
         data.requests.len(),
@@ -94,7 +95,7 @@ fn print_push(org: &str, data: &PushData) {
             let alias = data.alias(&job.org_key).map(|o| o.alias.as_str()).unwrap_or("-");
             println!(
                 "    ✗ {} [{}] {}",
-                data.org_name(&job.org_key),
+                config.org_display_name(&job.org_key, &data.org_name(&job.org_key)),
                 job.org_key,
                 alias
             );
@@ -105,7 +106,7 @@ fn print_push(org: &str, data: &PushData) {
     }
 }
 
-fn print_subscribers(data: &PushData) {
+fn print_subscribers(config: &Config, data: &PushData) {
     let latest = data
         .latest_released
         .as_deref()
@@ -116,8 +117,19 @@ fn print_subscribers(data: &PushData) {
         data.subscribers.len()
     );
     let mut subscribers: Vec<_> = data.subscribers.iter().collect();
-    subscribers.sort_by_key(|s| (data.is_latest(&s.version_id), s.name.to_lowercase()));
+    subscribers.sort_by_key(|s| {
+        (
+            !config.is_important(&s.org_key),
+            data.is_latest(&s.version_id),
+            config.org_display_name(&s.org_key, &s.name).to_lowercase(),
+        )
+    });
     for s in subscribers {
+        let star = if config.is_important(&s.org_key) {
+            "★"
+        } else {
+            " "
+        };
         let state = if data.is_latest(&s.version_id) {
             "up to date"
         } else {
@@ -125,10 +137,10 @@ fn print_subscribers(data: &PushData) {
         };
         let alias = data.alias(&s.org_key).map(|o| o.alias.as_str()).unwrap_or("-");
         println!(
-            "{:<10} {:<9} {:<32} {:<12} {:<8} {}  {}",
+            "{star} {:<10} {:<9} {:<32} {:<12} {:<8} {}  {}",
             state,
             data.version_label(&s.version_id),
-            s.name,
+            config.org_display_name(&s.org_key, &s.name),
             s.org_type,
             s.instance,
             s.org_key,

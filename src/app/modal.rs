@@ -41,6 +41,7 @@ pub struct Input {
 #[derive(Clone, Debug, PartialEq)]
 pub enum InputPurpose {
     TestClasses { org: String },
+    OrgName { org_key: String },
     Limit,
 }
 
@@ -131,6 +132,7 @@ pub struct OrgChoice {
     pub org_type: String,
     pub installed: String,
     pub installed_key: Option<VersionKey>,
+    pub important: bool,
     pub checked: bool,
     pub warn: Option<&'static str>,
 }
@@ -178,8 +180,10 @@ impl Wizard {
     }
 
     /// Re-derives warnings and the default selection for the chosen version.
+    /// Marked orgs behind the version if any org is marked, else every org behind it.
     pub fn apply_selection(&mut self) {
         let key = self.selected_version().key;
+        let any_important = self.has_important();
         for org in &mut self.orgs {
             org.warn = match org.installed_key {
                 Some(installed) if installed == key => Some("already on this version"),
@@ -189,7 +193,7 @@ impl Wizard {
             };
             org.checked = match &self.preselected {
                 Some(keys) => keys.contains(&org.key),
-                None => org.warn.is_none(),
+                None => org.warn.is_none() && (org.important || !any_important),
             };
         }
     }
@@ -211,6 +215,16 @@ impl Wizard {
         for org in &mut self.orgs {
             org.checked = org.warn.is_none();
         }
+    }
+
+    pub fn check_important_behind(&mut self) {
+        for org in &mut self.orgs {
+            org.checked = org.important && org.warn.is_none();
+        }
+    }
+
+    pub fn has_important(&self) -> bool {
+        self.orgs.iter().any(|o| o.important)
     }
 
     pub fn check_none(&mut self) {
