@@ -64,13 +64,14 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
     matches!((parse_version(candidate), parse_version(current)), (Some(a), Some(b)) if a > b)
 }
 
-/// The Rust target triple the release workflow builds for this platform.
+/// The Rust target triple the release workflow builds for this platform. Linux builds are static (musl), so
+/// they run regardless of the installed glibc.
 pub fn target_for(os: &str, arch: &str) -> Option<&'static str> {
     Some(match (os, arch) {
         ("macos", "aarch64") => "aarch64-apple-darwin",
         ("macos", "x86_64") => "x86_64-apple-darwin",
-        ("linux", "x86_64") => "x86_64-unknown-linux-gnu",
-        ("linux", "aarch64") => "aarch64-unknown-linux-gnu",
+        ("linux", "x86_64") => "x86_64-unknown-linux-musl",
+        ("linux", "aarch64") => "aarch64-unknown-linux-musl",
         ("windows", "x86_64") => "x86_64-pc-windows-msvc",
         _ => return None,
     })

@@ -18,10 +18,14 @@ jobs:
             os: macos-latest
           - target: x86_64-apple-darwin
             os: macos-latest
-          - target: x86_64-unknown-linux-gnu
+          # Static musl builds run on any Linux, whatever glibc it has. `compat` repackages the same binary
+          # under the old -linux-gnu name, which sf-cockpit 0.3.1 and older look for when updating.
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
+            compat: x86_64-unknown-linux-gnu
+          - target: aarch64-unknown-linux-musl
             os: ubuntu-24.04-arm
+            compat: aarch64-unknown-linux-gnu
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -30,6 +34,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - if: contains(matrix.target, 'musl')
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       - run: cargo build --release --locked --target ${{ matrix.target }}
 
       - name: Package (macOS, Linux)
@@ -40,6 +46,12 @@ jobs:
           cp target/${{ matrix.target }}/release/sf-cockpit README.md LICENSE "$name"/
           tar czf "$name.tar.gz" "$name"
           shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+          if [ -n "${{ matrix.compat }}" ]; then
+            old=sf-cockpit-${{ matrix.compat }}
+            mv "$name" "$old"
+            tar czf "$old.tar.gz" "$old"
+            shasum -a 256 "$old.tar.gz" > "$old.tar.gz.sha256"
+          fi
 
       - name: Package (Windows)
         if: runner.os == 'Windows'

@@ -409,10 +409,11 @@ fn update_versions_and_targets() {
     assert!(!is_newer("0.1.9", "0.2.0"));
     assert!(!is_newer("nightly", "0.2.0"));
     assert_eq!(target_for("macos", "aarch64"), Some("aarch64-apple-darwin"));
+    assert_eq!(target_for("linux", "x86_64"), Some("x86_64-unknown-linux-musl"));
     assert_eq!(target_for("freebsd", "x86_64"), None);
     assert_eq!(
-        archive_name("x86_64-unknown-linux-gnu"),
-        "sf-cockpit-x86_64-unknown-linux-gnu.tar.gz"
+        archive_name("x86_64-unknown-linux-musl"),
+        "sf-cockpit-x86_64-unknown-linux-musl.tar.gz"
     );
     assert_eq!(
         archive_name("x86_64-pc-windows-msvc"),
