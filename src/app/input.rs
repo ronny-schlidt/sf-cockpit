@@ -242,11 +242,31 @@ impl App {
                 KeyCode::Esc => Outcome::Close,
                 KeyCode::Enter => Outcome::Submit(input.purpose.clone(), input.value.clone()),
                 KeyCode::Backspace => {
-                    input.value.pop();
+                    input.backspace();
+                    Outcome::Nothing
+                }
+                KeyCode::Delete => {
+                    input.delete();
+                    Outcome::Nothing
+                }
+                KeyCode::Left => {
+                    input.left();
+                    Outcome::Nothing
+                }
+                KeyCode::Right => {
+                    input.right();
+                    Outcome::Nothing
+                }
+                KeyCode::Home => {
+                    input.home();
+                    Outcome::Nothing
+                }
+                KeyCode::End => {
+                    input.end();
                     Outcome::Nothing
                 }
                 KeyCode::Char(c) => {
-                    input.value.push(c);
+                    input.insert(c);
                     Outcome::Nothing
                 }
                 _ => Outcome::Nothing,

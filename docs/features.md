@@ -20,6 +20,9 @@ Cross-cutting, not tied to one tab:
 - **Confirmation + danger marking** — every write command shows the exact `sf` argv and asks first; push
   upgrades, promotions, and installs outside the scratch org are flagged `danger: true` (red styling) in
   `src/app/modal.rs::Confirm`.
+- **Text fields with a caret** — every `Modal::Input` (org name, Apex test classes, push limit) edits at a
+  caret: `Left`/`Right`, `Home`/`End`, `Backspace` and `Delete` work per character, not per byte, so
+  non-ASCII names stay intact (`src/app/modal.rs::Input`).
 - **Mouse support** — tabs, rows, footer buttons, wheel scroll, the Push-tab pane divider, and drag-to-copy
   text selection (`src/app/selection.rs`, `on_mouse` in `src/app/mod.rs`).
 - **`--demo`** — every tab works against fixtures in `src/demo.rs`, no org or `sf` CLI needed; also the

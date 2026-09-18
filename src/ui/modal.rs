@@ -141,19 +141,27 @@ fn draw_confirm(frame: &mut Frame, app: &mut App, area: Rect, confirm: &Confirm)
 
 fn draw_input(frame: &mut Frame, app: &mut App, area: Rect, input: &Input) {
     let (content, row) = dialog(frame, area, width_for(area, 80), 8, &input.title, MAUVE);
-    let cursor = if (app.tick / 6).is_multiple_of(2) {
-        "▏"
-    } else {
-        " "
-    };
+    let on = (app.tick / 6).is_multiple_of(2);
+    let mut field = vec![Span::styled("› ", Style::new().fg(MAUVE).bold())];
+    let (before, rest) = input.value.split_at(input.cursor.min(input.value.len()));
+    field.push(value(before.to_string()));
+    match rest.chars().next() {
+        // Mid-text the caret highlights the character it sits on, so nothing shifts as it blinks.
+        Some(c) => {
+            let style = if on {
+                Style::new().fg(CRUST).bg(MAUVE)
+            } else {
+                Style::new().fg(TEXT)
+            };
+            field.push(Span::styled(c.to_string(), style));
+            field.push(value(rest[c.len_utf8()..].to_string()));
+        }
+        None => field.push(colored(if on { "▏" } else { " " }, MAUVE)),
+    }
     let lines = vec![
         Line::styled(input.prompt.clone(), Style::new().fg(SUBTEXT)),
         Line::default(),
-        Line::from(vec![
-            Span::styled("› ", Style::new().fg(MAUVE).bold()),
-            value(input.value.clone()),
-            colored(cursor, MAUVE),
-        ]),
+        Line::from(field),
     ];
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), content);
     buttons(

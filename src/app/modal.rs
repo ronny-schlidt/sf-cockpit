@@ -37,11 +37,72 @@ pub struct Confirm {
     pub action: PendingAction,
 }
 
+/// A single-line text field. `cursor` is a byte offset into `value` and always
+/// sits on a char boundary, so editing stays correct for non-ASCII org names.
 pub struct Input {
     pub title: String,
     pub prompt: String,
     pub value: String,
+    pub cursor: usize,
     pub purpose: InputPurpose,
+}
+
+impl Input {
+    /// Opens the field with the caret behind a prefilled value.
+    pub fn new(title: String, prompt: String, value: String, purpose: InputPurpose) -> Self {
+        Self {
+            title,
+            prompt,
+            cursor: value.len(),
+            value,
+            purpose,
+        }
+    }
+
+    pub fn insert(&mut self, c: char) {
+        self.value.insert(self.cursor, c);
+        self.cursor += c.len_utf8();
+    }
+
+    pub fn backspace(&mut self) {
+        if let Some(prev) = self.prev() {
+            self.value.remove(prev);
+            self.cursor = prev;
+        }
+    }
+
+    pub fn delete(&mut self) {
+        if self.cursor < self.value.len() {
+            self.value.remove(self.cursor);
+        }
+    }
+
+    pub fn left(&mut self) {
+        if let Some(prev) = self.prev() {
+            self.cursor = prev;
+        }
+    }
+
+    pub fn right(&mut self) {
+        if let Some(c) = self.value[self.cursor..].chars().next() {
+            self.cursor += c.len_utf8();
+        }
+    }
+
+    pub fn home(&mut self) {
+        self.cursor = 0;
+    }
+
+    pub fn end(&mut self) {
+        self.cursor = self.value.len();
+    }
+
+    fn prev(&self) -> Option<usize> {
+        self.value[..self.cursor]
+            .chars()
+            .next_back()
+            .map(|c| self.cursor - c.len_utf8())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
