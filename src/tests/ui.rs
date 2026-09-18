@@ -627,6 +627,41 @@ fn subscribers_can_be_marked_and_named_and_are_saved() {
 }
 
 #[test]
+fn text_input_edits_at_the_caret() {
+    let mut app = app();
+    key(&mut app, KeyCode::Char('5'));
+    key(&mut app, KeyCode::Char('t'));
+    keys(&mut app, "ScanTst");
+
+    // Insert in the middle: ScanT|st -> ScanTest.
+    key(&mut app, KeyCode::Left);
+    key(&mut app, KeyCode::Left);
+    keys(&mut app, "e");
+    key(&mut app, KeyCode::Home);
+    key(&mut app, KeyCode::Delete);
+    keys(&mut app, "S");
+    key(&mut app, KeyCode::End);
+    keys(&mut app, " Ölauf");
+
+    // Backspace and Delete step over the whole umlaut, not over single bytes.
+    for _ in 0..4 {
+        key(&mut app, KeyCode::Left);
+    }
+    key(&mut app, KeyCode::Backspace);
+    keys(&mut app, "Ä");
+    key(&mut app, KeyCode::Delete);
+
+    let Some(Modal::Input(input)) = &app.modal else {
+        panic!("the test classes dialog is open");
+    };
+    assert_eq!(input.value, "ScanTest Äauf");
+    assert_eq!(input.cursor, "ScanTest Ä".len());
+
+    let screen = render(&mut app);
+    assert!(screen.contains("› ScanTest Äauf"), "{screen}");
+}
+
+#[test]
 fn starting_outside_a_project_says_so_in_the_setup_popup() {
     let mut cfg = Config::demo();
     cfg.project_dir = None;

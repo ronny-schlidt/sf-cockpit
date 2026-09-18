@@ -1374,14 +1374,14 @@ impl App {
             self.pick_deploy_org();
             return;
         }
-        self.modal = Some(Modal::Input(Input {
-            title: format!("Run Apex tests on {}", self.deploy_org),
-            prompt: "Test classes, comma separated. Empty runs all local tests.".into(),
-            value: String::new(),
-            purpose: InputPurpose::TestClasses {
+        self.modal = Some(Modal::Input(Input::new(
+            format!("Run Apex tests on {}", self.deploy_org),
+            "Test classes, comma separated. Empty runs all local tests.".into(),
+            String::new(),
+            InputPurpose::TestClasses {
                 org: self.deploy_org.clone(),
             },
-        }));
+        )));
     }
 
     /// Runs the command behind a confirmed dialog.

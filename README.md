@@ -125,6 +125,7 @@ The mouse works everywhere: click tabs, rows and the buttons in the footer, scro
 | `o` / `D` / `t` | Deploy & Test | Choose the org / deploy the project / run Apex tests |
 | `Enter`, `e` / `C` | Settings | Change the selected setting / clear the cache |
 | `[` `]` | Push | Resize the panels |
+| `←` `→`, `Home` `End`, `Backspace`, `Delete` | text fields | Move the caret inside the text and edit anywhere in it |
 
 ### Scheduling a push upgrade
 

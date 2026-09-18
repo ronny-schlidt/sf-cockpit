@@ -362,12 +362,12 @@ impl App {
             SettingKey::DevHub | SettingKey::ScratchOrg => self.pick_org_setting(key),
             SettingKey::Package => self.pick_package(),
             SettingKey::Limit => {
-                self.modal = Some(Modal::Input(Input {
-                    title: "Push requests to load".into(),
-                    prompt: "How many recent push requests should the Push tab show? (1 to 500)".into(),
-                    value: self.cfg.limit.to_string(),
-                    purpose: InputPurpose::Limit,
-                }))
+                self.modal = Some(Modal::Input(Input::new(
+                    "Push requests to load".into(),
+                    "How many recent push requests should the Push tab show? (1 to 500)".into(),
+                    self.cfg.limit.to_string(),
+                    InputPurpose::Limit,
+                )))
             }
             SettingKey::Cache => self.clear_cache(),
             SettingKey::Version => self.show_update(),
@@ -580,16 +580,17 @@ impl App {
         let Some((key, name)) = self.selected_subscriber_key() else {
             return;
         };
-        self.modal = Some(Modal::Input(Input {
-            title: format!("Name for {name}"),
-            prompt: format!("Your own name for org {key}, saved in the config file. Empty removes it."),
-            value: self
-                .cfg
-                .org_note(&key)
-                .and_then(|n| n.name.clone())
-                .unwrap_or_default(),
-            purpose: InputPurpose::OrgName { org_key: key },
-        }));
+        let value = self
+            .cfg
+            .org_note(&key)
+            .and_then(|n| n.name.clone())
+            .unwrap_or_default();
+        self.modal = Some(Modal::Input(Input::new(
+            format!("Name for {name}"),
+            format!("Your own name for org {key}, saved in the config file. Empty removes it."),
+            value,
+            InputPurpose::OrgName { org_key: key },
+        )));
     }
 
     /// Writes an org note to the active config file and applies it at once.
