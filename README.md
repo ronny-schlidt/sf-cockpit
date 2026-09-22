@@ -207,4 +207,4 @@ Bug reports, ideas and pull requests are welcome: [open an issue](https://github
 
 [MIT](LICENSE). Not affiliated with or endorsed by Salesforce, Inc. Salesforce is a trademark of Salesforce, Inc.
 
-Made by [Ronny Schlidt](https://github.com/ronny-schlidt), who uses it to ship [bowbridge Anti-Virus for Salesforce](https://www.bowbridge.net/en/salesforce-antivirus/) on AppExchange.
+Made by [Ronny Schlidt](https://github.com/ronny-schlidt), who uses it to ship [bowbridge Anti-Virus for Salesforce](https://appexchange.salesforce.com/appxListingDetail?listingId=c3915cd5-fd7a-4915-91aa-22cd7c6a0cfa) on AgentExchange.
