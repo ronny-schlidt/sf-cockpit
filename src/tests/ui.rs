@@ -726,3 +726,10 @@ fn update_badge_and_dialog() {
     key(&mut app, KeyCode::Esc);
     assert!(app.modal.is_none());
 }
+
+#[test]
+fn counts_use_singular_for_one() {
+    assert_eq!(ui::count(0, "org", "orgs"), "0 orgs");
+    assert_eq!(ui::count(1, "org", "orgs"), "1 org");
+    assert_eq!(ui::count(2, "subscriber", "subscribers"), "2 subscribers");
+}

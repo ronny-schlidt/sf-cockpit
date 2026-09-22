@@ -98,7 +98,8 @@ fn draw_tab(frame: &mut Frame, app: &mut App, data: &PushData, area: Rect) {
         table_area,
         TableSpec {
             title: format!(
-                "Subscribers · {count} orgs · {marked} marked · {behind} behind latest released {latest}"
+                "Subscribers · {} · {marked} marked · {behind} behind latest released {latest}",
+                super::count(count, "org", "orgs")
             ),
             focused: !app.editing_filter,
             header: &[

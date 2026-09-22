@@ -1391,9 +1391,9 @@ impl App {
         let spec = match action {
             PendingAction::SchedulePush(spec) => TaskSpec {
                 title: format!(
-                    "Schedule push of {} to {} orgs",
+                    "Schedule push of {} to {}",
                     spec.version_label,
-                    spec.org_keys.len()
+                    crate::ui::count(spec.org_keys.len(), "org", "orgs")
                 ),
                 argv: push::build_schedule(
                     &hub,

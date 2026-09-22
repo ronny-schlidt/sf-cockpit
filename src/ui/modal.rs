@@ -290,7 +290,7 @@ fn draw_wizard(frame: &mut Frame, app: &mut App, area: Rect, wizard: &Wizard) {
                 Span::styled(version.label.clone(), Style::new().fg(TEXT).bold()),
                 label(" to "),
                 Span::styled(
-                    format!("{checked} of {} orgs", wizard.orgs.len()),
+                    format!("{checked} of {}", super::count(wizard.orgs.len(), "org", "orgs")),
                     Style::new().fg(if checked > 0 { TEXT } else { RED }).bold(),
                 ),
                 label(if wizard.has_important() {

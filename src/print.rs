@@ -71,9 +71,9 @@ pub fn run(config: &Config, tab: TabArg, org: Option<&str>, demo: bool) -> Resul
 fn print_push(config: &Config, data: &PushData) {
     let org = &config.dev_hub;
     println!(
-        "{} push requests, {} subscribers on {org}\n",
-        data.requests.len(),
-        data.subscribers.len()
+        "{}, {} on {org}\n",
+        ui::count(data.requests.len(), "push request", "push requests"),
+        ui::count(data.subscribers.len(), "subscriber", "subscribers")
     );
     for request in &data.requests {
         let counts = data.counts(&request.id);
@@ -112,9 +112,14 @@ fn print_subscribers(config: &Config, data: &PushData) {
         .as_deref()
         .map(|id| data.version_label(id))
         .unwrap_or_else(|| "?".into());
+    let behind = data
+        .subscribers
+        .iter()
+        .filter(|s| !data.is_latest(&s.version_id))
+        .count();
     println!(
-        "{} subscribers, latest released {latest}\n",
-        data.subscribers.len()
+        "{}, {behind} behind latest released {latest}\n",
+        ui::count(data.subscribers.len(), "subscriber", "subscribers")
     );
     let mut subscribers: Vec<_> = data.subscribers.iter().collect();
     subscribers.sort_by_key(|s| {
@@ -150,7 +155,7 @@ fn print_subscribers(config: &Config, data: &PushData) {
 }
 
 fn print_orgs(orgs: &[OrgInfo]) {
-    println!("{} orgs\n", orgs.len());
+    println!("{}\n", ui::count(orgs.len(), "org", "orgs"));
     for org in orgs {
         let default = if org.is_default {
             " (default)"
@@ -174,27 +179,33 @@ fn print_orgs(orgs: &[OrgInfo]) {
 }
 
 fn print_versions(data: &PushData, versions: &[PackageVersion]) {
-    println!("{} package versions\n", versions.len());
+    println!(
+        "{}\n",
+        ui::count(versions.len(), "package version", "package versions")
+    );
     for v in versions {
         let coverage = v
             .coverage
             .map(|c| format!("{c:.0}%"))
             .unwrap_or_else(|| "-".into());
         println!(
-            "{:<10} {:<9} {:<20} {:<18} coverage {:<5} {:>3} subscribers  {}",
+            "{:<10} {:<9} {:<20} {:<18} coverage {:<5} {:>15}  {}",
             v.state(),
             v.version,
             v.name,
             v.created,
             coverage,
-            data.subscribers_on(&v.id),
+            ui::count(data.subscribers_on(&v.id), "subscriber", "subscribers"),
             v.id
         );
     }
 }
 
 fn print_deploys(org: &str, deploys: &[DeployRecord]) {
-    println!("{} deployments on {org}\n", deploys.len());
+    println!(
+        "{} on {org}\n",
+        ui::count(deploys.len(), "deployment", "deployments")
+    );
     for d in deploys {
         println!(
             "{:<12} {:<12} components {}/{} ({} errors)  tests {}/{} ({} errors)  {}  {}  {}",

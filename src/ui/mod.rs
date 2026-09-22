@@ -643,6 +643,11 @@ pub(super) fn wrapped_height(text: &Text, width: u16) -> u16 {
         .min(u16::MAX as usize) as u16
 }
 
+/// "1 org", "3 orgs": a count with its noun in the right number.
+pub fn count(n: usize, singular: &str, plural: &str) -> String {
+    format!("{n} {}", if n == 1 { singular } else { plural })
+}
+
 pub fn fmt_date(time: Option<Timestamp>) -> String {
     time.map(|t| t.with_timezone(&Local).format("%d.%m. %H:%M").to_string())
         .unwrap_or_else(|| "—".into())
