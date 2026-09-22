@@ -29,8 +29,20 @@ pub struct FileConfig {
     pub skip_ancestor_check: Option<bool>,
     /// Number of recent push requests to load.
     pub limit: Option<usize>,
+    /// When to ask GitHub for a newer release.
+    pub update_check: Option<UpdateCheck>,
     /// Own names and markings for subscriber orgs, by 15- or 18-character org id.
     pub orgs: Option<BTreeMap<String, OrgNote>>,
+}
+
+/// When sf-cockpit asks GitHub for a newer release. `daily` reuses the last answer for a day.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateCheck {
+    #[default]
+    Daily,
+    Start,
+    Off,
 }
 
 /// What the user noted about one subscriber org: `[orgs.<org id>]`.
@@ -82,6 +94,7 @@ impl FileConfig {
             definition_file: over.definition_file.or(self.definition_file),
             skip_ancestor_check: over.skip_ancestor_check.or(self.skip_ancestor_check),
             limit: over.limit.or(self.limit),
+            update_check: over.update_check.or(self.update_check),
             orgs: match (self.orgs, over.orgs) {
                 (Some(mut base), Some(over)) => {
                     for (id, note) in over {
@@ -105,13 +118,14 @@ impl FileConfig {
             "definition_file" => self.definition_file.is_some(),
             "skip_ancestor_check" => self.skip_ancestor_check.is_some(),
             "limit" => self.limit.is_some(),
+            "update_check" => self.update_check.is_some(),
             "orgs" => self.orgs.is_some(),
             _ => false,
         }
     }
 }
 
-const KEYS: [&str; 9] = [
+const KEYS: [&str; 10] = [
     "dev_hub",
     "package",
     "scratch_org",
@@ -120,6 +134,7 @@ const KEYS: [&str; 9] = [
     "definition_file",
     "skip_ancestor_check",
     "limit",
+    "update_check",
     "orgs",
 ];
 
@@ -157,6 +172,7 @@ pub struct Config {
     pub definition_file: String,
     pub skip_ancestor_check: bool,
     pub limit: usize,
+    pub update_check: UpdateCheck,
     /// Org notes by 15-character org key.
     pub orgs: HashMap<String, OrgNote>,
     pub origins: HashMap<&'static str, Origin>,
@@ -177,6 +193,7 @@ impl Config {
             definition_file: "config/project-scratch-def.json".into(),
             skip_ancestor_check: false,
             limit: 30,
+            update_check: UpdateCheck::Off,
             orgs: demo_notes(),
             origins: HashMap::new(),
             save_path: None,
@@ -299,6 +316,7 @@ pub fn load_from(cli: FileConfig, cwd: &Path, home: Option<&Path>, xdg: Option<&
             .unwrap_or_else(|| "config/project-scratch-def.json".into()),
         skip_ancestor_check: merged.skip_ancestor_check.unwrap_or(false),
         limit: merged.limit.unwrap_or(30),
+        update_check: merged.update_check.unwrap_or_default(),
         orgs: normalize_notes(merged.orgs.unwrap_or_default()),
         origins,
         save_path,
