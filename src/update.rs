@@ -15,8 +15,8 @@ use std::time::Duration;
 
 pub const REPO: &str = "ronny-schlidt/sf-cockpit";
 const CACHE_KEY: &str = "update";
-/// How long a check result is reused before GitHub is asked again, unless `update_check = "start"`.
-pub const CHECK_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
+/// How long a check result is reused before GitHub is asked again.
+const CHECK_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ReleaseInfo {
@@ -180,15 +180,14 @@ pub fn fetch_latest() -> Result<(ReleaseInfo, Via)> {
     )
 }
 
-/// A newer release than this binary, if any. Asks GitHub only when the remembered answer is older than
-/// `max_age`, and remembers the new one.
-pub fn check(cache: Option<&Cache>, max_age: Duration) -> Option<ReleaseInfo> {
+/// A newer release than this binary, if any. Asks GitHub at most once a day and remembers the answer.
+pub fn check(cache: Option<&Cache>) -> Option<ReleaseInfo> {
     let cached = cache.and_then(|c| c.load::<Option<ReleaseInfo>>(CACHE_KEY));
     let latest = match cached {
         Some((latest, saved_at))
             if (chrono::Local::now() - saved_at)
                 .to_std()
-                .is_ok_and(|age| age < max_age) =>
+                .is_ok_and(|age| age < CHECK_EVERY) =>
         {
             latest
         }

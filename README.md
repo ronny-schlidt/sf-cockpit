@@ -42,7 +42,7 @@ sf-cockpit --check-update     # prints the newer version and its notes; exit cod
 sf-cockpit --update           # installs the latest release in place
 ```
 
-Updates use `gh` when it is installed and logged in, otherwise plain `curl`. The check runs at most once a day; set `update_check = "start"` in the config file to check on every start, or `"off"` (or `SF_COCKPIT_NO_UPDATE_CHECK=1`) to turn it off. Nothing is sent to GitHub except the request for the latest release.
+Updates use `gh` when it is installed and logged in, otherwise plain `curl`. Turn the background check off with `SF_COCKPIT_NO_UPDATE_CHECK=1`. Nothing is sent to GitHub except the request for the latest release.
 
 You also need the [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli) (`sf`), logged in to the Dev Hub that owns your package:
 
@@ -82,7 +82,6 @@ source_dir = "force-app"                          # what D deploys
 definition_file = "config/project-scratch-def.json"
 skip_ancestor_check = false
 limit = 30                                        # push requests to load
-update_check = "daily"                            # ask GitHub for a new release: "daily", "start" or "off"
 
 [orgs.00D5g000001AbCd]                            # subscriber org id, 15 or 18 characters
 name = "ACME Production"                          # your own name, shown instead of the org name

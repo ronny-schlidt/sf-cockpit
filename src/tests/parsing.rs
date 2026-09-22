@@ -475,14 +475,3 @@ fn update_commands() {
     assert_eq!(release.notes, "## What's Changed\n* Faster pushes");
     assert!(parse_release(&json!({ "message": "Not Found" })).is_none());
 }
-
-#[test]
-fn update_check_parses_and_defaults_to_daily() {
-    use crate::config::UpdateCheck;
-    let parse = |text: &str| FileConfig::parse(text).unwrap().update_check;
-    assert_eq!(parse("update_check = \"start\""), Some(UpdateCheck::Start));
-    assert_eq!(parse("update_check = \"off\""), Some(UpdateCheck::Off));
-    assert_eq!(parse(""), None);
-    assert!(FileConfig::parse("update_check = \"hourly\"").is_err());
-    assert_eq!(UpdateCheck::default(), UpdateCheck::Daily);
-}

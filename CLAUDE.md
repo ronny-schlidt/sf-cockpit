@@ -86,8 +86,6 @@ considering a change done — no test org or Salesforce CLI login is needed for 
   elsewhere.
 - `sf --json` output can have progress-bar/ANSI noise mixed in; always go through `parse_json`/
   `strip_control` (`src/sf/mod.rs`) rather than parsing stdout directly.
-- A new config key makes every older release refuse to start on a file that uses it (`deny_unknown_fields`).
-  Release and install the new version before adding the key to a real config file.
 - The cache and demo/print paths must never see or store an access token or `sf org open`'s output (it
   contains a session id) — see README.md § Cache and § What it runs.
 

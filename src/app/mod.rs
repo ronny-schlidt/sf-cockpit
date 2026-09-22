@@ -5,7 +5,7 @@ pub mod settings;
 pub mod tabs;
 
 use crate::cache::Cache;
-use crate::config::{Config, UpdateCheck};
+use crate::config::Config;
 use crate::sf::deploy::{self, DeployRecord, TestRun};
 use crate::sf::orgs::{self, OrgInfo, OrgKind};
 use crate::sf::push::{self, PackageIds, PushData, PushError, PushJob, PushRequest, Subscriber, Version};
@@ -611,18 +611,13 @@ impl App {
         let Some(cache) = self.cache.clone() else {
             return;
         };
-        let max_age = match self.cfg.update_check {
-            UpdateCheck::Daily => update::CHECK_EVERY,
-            UpdateCheck::Start => std::time::Duration::ZERO,
-            UpdateCheck::Off => return,
-        };
         if self.demo || !update::check_enabled() {
             return;
         }
         self.remember_version(&cache);
         let tx = self.tx.clone();
         std::thread::spawn(move || {
-            let _ = tx.send(Msg::UpdateChecked(update::check(Some(&cache), max_age)));
+            let _ = tx.send(Msg::UpdateChecked(update::check(Some(&cache))));
         });
     }
 
