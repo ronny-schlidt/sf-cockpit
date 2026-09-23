@@ -1,6 +1,9 @@
-# sf-cockpit
+# sf-cockpit — Salesforce push upgrade troubleshooting in your terminal
 
-A terminal cockpit for Salesforce ISVs. It puts the `sf` commands you run every week behind one keyboard- and mouse-driven UI:
+A free, open-source terminal app for Salesforce ISVs to investigate failed package push upgrades, see
+subscriber orgs and their error messages together, and retry failed orgs after addressing the cause.
+It uses your existing Salesforce CLI (`sf`) login and puts your release workflow behind one keyboard-
+and mouse-driven UI:
 
 - **Push upgrades:** see which orgs failed and why, schedule new pushes, retry failed orgs, abort pending requests.
 - **Subscribers:** every org with your package and whether it is behind the latest release. Mark important customer orgs and give orgs your own names.
@@ -18,6 +21,9 @@ Every command that changes something shows the exact `sf` command and asks first
 **Who it is for:** ISV teams shipping a managed or unlocked package: when a push upgrade fails, Salesforce tells you to query the API for the details. sf-cockpit does those queries and shows the failed orgs with their errors next to each other. The Orgs and Deploy & Test tabs are also useful for any Salesforce developer or consultant working with many scratch orgs and sandboxes, and `--print` gives CI jobs and AI agents the same overview as plain text.
 
 Try it without an org: install it, then run `sf-cockpit --demo`.
+
+Investigating a failed release? Read [How to investigate failed Salesforce package push upgrades](docs/push-upgrade-troubleshooting.md)
+for Salesforce CLI and SOQL examples, error interpretation, and retry steps with or without sf-cockpit.
 
 ## Install
 
@@ -134,6 +140,8 @@ The mouse works everywhere: click tabs, rows and the buttons in the footer, scro
 If Salesforce rejects some orgs, `sf` writes `job_errors/push_request_<id>_errors.log` into the project directory and the request can stay in `Created`. Abort it with `a` and schedule again without those orgs.
 
 ## Common push upgrade errors
+
+For the complete workflow, see the [push upgrade troubleshooting guide](docs/push-upgrade-troubleshooting.md).
 
 | Error | Meaning | Next step |
 |---|---|---|
